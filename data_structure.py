@@ -11,15 +11,12 @@ def strip_accents(s):
                   if unicodedata.category(c) != 'Mn')
 
 class RawData:
-    def __init__(self):
-        self.userStr = ''
-        self.productStr = ''
-        self.reviewText = ''
-        self.goldRating = -1
-        self.predictedRating = -1
-        self.userStr = ''
-
-
+    def __init__(self,name,count):
+        self.idx = name+ '/'+str(count)
+        self.abstract = ''
+        self.answers = ''
+        self.prediction = ''
+        
 class DataSet:
     def __init__(self, data):
         self.data = data
@@ -70,20 +67,49 @@ class Corpus:
 
     def load(self, in_path, name):
         self.doclst[name] = []
+        cnt = 0
+        binFile = []
         for line in open(in_path):
-            items = line.split('<split1>')
-            doc = RawData()
-            doc.goldRating = int(items[0])
-            doc.reviewText = items[1]
+            binFile.append(line)
+
+        itr = 0
+        while(itr < len(binFile)):
+            print itr
+            doc = RawData(name,cnt)
+            while(itr<len(binFile) and len(binFile[itr])<15):
+                itr+=1
+
+            if(itr >= len(binFile)):
+                break
+
+            doc.abstract = binFile[itr]
+            itr+=1
+
+            while(itr<len(binFile) and len(binFile[itr])<15):
+                itr+=1
+
+            if(itr >= len(binFile)):
+                break
+
+            doc.answers = binFile[itr]
+            itr+=1
+
             self.doclst[name].append(doc)
+            cnt+=1
+
+
     def preprocess(self):
-        random.shuffle(self.doclst['train'])
         for dataset in self.doclst:
             for doc in self.doclst[dataset]:
-                doc.sent_lst = doc.reviewText.split('<split2>')
-                doc.sent_lst = [re.sub(r"[^A-Za-z0-9(),!?\'\`_]", " ",sent) for sent in doc.sent_lst]
-                doc.sent_token_lst = [sent.split() for sent in doc.sent_lst]
+                doc.abstract_sent_list = doc.abstract.split('</s> <s>')
+                doc.abstract_sent_list = [re.sub(r"[^A-Za-z0-9(),!?\'\`_]", " ",sent) for sent in doc.abstract_sent_list]
+
+                doc.answers_sent_list = doc.answers.split('.')
+                doc.answers_sent_list = [re.sub(r"[^A-Za-z0-9(),!?\'\`_]", " ",sent) for sent in doc.answers_sent_list]
+
+                doc.sent_token_lst = [sent.split() for sent in doc.answers_sent_list]
                 doc.sent_token_lst = [sent_tokens for sent_tokens in doc.sent_token_lst if(len(sent_tokens)!=0)]
+            
             self.doclst[dataset] = [doc for doc in self.doclst[dataset] if len(doc.sent_token_lst)!=0]
 
     def build_vocab(self):
