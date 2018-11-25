@@ -52,33 +52,33 @@ def run(config):
     print(config.__flags)
     logger.critical(str(config.__flags))
 
-    model = StructureModel(config)
-    model.build()
-    model.get_loss()
-    # trainer = Trainer(config)
+    # model = StructureModel(config)
+    # model.build()
+    # model.get_loss()
+    # # trainer = Trainer(config)
 
-    num_batches_per_epoch = int(num_examples / config.batch_size)
-    num_steps = config.epochs * num_batches_per_epoch
+    # num_batches_per_epoch = int(num_examples / config.batch_size)
+    # num_steps = config.epochs * num_batches_per_epoch
 
-    with tf.Session() as sess:
-        gvi = tf.global_variables_initializer()
-        sess.run(gvi)
-        sess.run(model.embeddings.assign(embedding_matrix.astype(np.float32)))
-        loss = 0
+    # with tf.Session() as sess:
+    #     gvi = tf.global_variables_initializer()
+    #     sess.run(gvi)
+    #     sess.run(model.embeddings.assign(embedding_matrix.astype(np.float32)))
+    #     loss = 0
 
-        for ct, batch in tqdm.tqdm(train_batches, total=num_steps):
-            feed_dict = model.get_feed_dict(batch)
-            outputs,_,_loss = sess.run([model.final_output, model.opt, model.loss], feed_dict=feed_dict)
-            loss+=_loss
-            if(ct%config.log_period==0):
-                acc_test = evaluate(sess, model, test_batches)
-                acc_dev = evaluate(sess, model, dev_batches)
-                print('Step: {} Loss: {}\n'.format(ct, loss))
-                print('Test ACC: {}\n'.format(acc_test))
-                print('Dev  ACC: {}\n'.format(acc_dev))
-                logger.debug('Step: {} Loss: {}\n'.format(ct, loss))
-                logger.debug('Test ACC: {}\n'.format(acc_test))
-                logger.debug('Dev  ACC: {}\n'.format(acc_dev))
-                logger.handlers[0].flush()
-                loss = 0
+    #     for ct, batch in tqdm.tqdm(train_batches, total=num_steps):
+    #         feed_dict = model.get_feed_dict(batch)
+    #         outputs,_,_loss = sess.run([model.final_output, model.opt, model.loss], feed_dict=feed_dict)
+    #         loss+=_loss
+    #         if(ct%config.log_period==0):
+    #             acc_test = evaluate(sess, model, test_batches)
+    #             acc_dev = evaluate(sess, model, dev_batches)
+    #             print('Step: {} Loss: {}\n'.format(ct, loss))
+    #             print('Test ACC: {}\n'.format(acc_test))
+    #             print('Dev  ACC: {}\n'.format(acc_dev))
+    #             logger.debug('Step: {} Loss: {}\n'.format(ct, loss))
+    #             logger.debug('Test ACC: {}\n'.format(acc_test))
+    #             logger.debug('Dev  ACC: {}\n'.format(acc_dev))
+    #             logger.handlers[0].flush()
+    #             loss = 0
 

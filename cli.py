@@ -15,7 +15,7 @@ from main import run as m
 flags = tf.app.flags
 
 flags.DEFINE_string("rnn_cell", "lstm", "rnn_cell")
-flags.DEFINE_string("data_file", "../data/yelp-2013-fake.pkl", "data_file")
+flags.DEFINE_string("data_file", "Data/CQA.pkl", "data_file")
 
 flags.DEFINE_integer("batch_size", 16, "batch_size")
 flags.DEFINE_integer("epochs", 30, "epochs")
@@ -27,11 +27,11 @@ flags.DEFINE_float("keep_prob", 0.7, "keep_prob")
 flags.DEFINE_string("opt", 'Adagrad', "opt")
 flags.DEFINE_float("lr", 0.05, "lr")
 flags.DEFINE_float("norm", 1e-4, "norm")
-flags.DEFINE_integer("gpu", -1, "gpu")
+flags.DEFINE_integer("gpu", 0, "gpu")
 
 flags.DEFINE_string("sent_attention", "max", "sent_attention")
 flags.DEFINE_string("doc_attention", "max", "doc_attention")
-flags.DEFINE_bool("large_data", False, "large_data")
+flags.DEFINE_bool("large_data", True, "large_data")
 flags.DEFINE_integer("log_period", 5000, "log_period")
 
 

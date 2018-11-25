@@ -50,11 +50,15 @@ class DataSet:
 class Instance:
     def __init__(self):
         self.token_idxs = None
-        self.goldLabel = -1
+        self.abstract_idxs = None
         self.idx = -1
 
     def _doc_len(self, idx):
         k = len(self.token_idxs)
+        return k
+
+    def _abstract_len(self,idx):
+        k = len(self.abstract_idxs)
         return k
 
     def _max_sent_len(self, idxs):
@@ -109,30 +113,29 @@ class Corpus:
 
                 doc.sent_token_lst = [sent.split() for sent in doc.answers_sent_list]
                 doc.sent_token_lst = [sent_tokens for sent_tokens in doc.sent_token_lst if(len(sent_tokens)!=0)]
-            
-            self.doclst[dataset] = [doc for doc in self.doclst[dataset] if len(doc.sent_token_lst)!=0]
 
-    def build_vocab(self):
-        self.vocab = {}
-        for doc in self.doclst:
-            for sent in doc.sent_token_lst:
-                for token in sent:
-                    if(token not in self.vocab):
-                        self.vocab[token] = {'idx':len(self.vocab), 'count':1}
-                    else:
-                        self.vocab[token]['count'] += 1
+                doc.abstract_token_lst = [sent.split() for sent in doc.abstract_sent_list]
+                doc.abstract_token_lst = [sent_tokens for sent_tokens in doc.abstract_token_lst if(len(sent_tokens)!=0)]
+            
+            self.doclst[dataset] = [doc for doc in self.doclst[dataset] if (len(doc.sent_token_lst)!=0 and len(doc.abstract_token_lst)!=0)]
+
+
     def w2v(self, options):
         sentences = []
         for doc in self.doclst['train']:
             sentences.extend(doc.sent_token_lst)
+            sentences.extend(doc.abstract_token_lst)
+        
         if('dev' in self.doclst):
             for doc in self.doclst['dev']:
                 sentences.extend(doc.sent_token_lst)
-        print(sentences[0])
+                sentences.extend(doc.abstract_token_lst)
+        
         if(options['skip_gram']):
             self.w2v_model = gensim.models.word2vec.Word2Vec(size=options['emb_size'], window=5, min_count=5, workers=4, sg=1)
         else:
             self.w2v_model = gensim.models.word2vec.Word2Vec(size=options['emb_size'], window=5, min_count=5, workers=4)
+        
         self.w2v_model.scan_vocab(sentences)  # initial survey
         rtn = self.w2v_model.scale_vocab(dry_run = True)  # trim by min_count & precalculate downsampling
         print(rtn)
@@ -140,47 +143,41 @@ class Corpus:
         self.w2v_model.train(sentences, total_examples=self.w2v_model.corpus_count, epochs=self.w2v_model.iter)
         self.vocab = self.w2v_model.wv.vocab
         print('Vocab size: {}'.format(len(self.vocab)))
-
-        # model.save('../data/w2v.data')
-
+    
     def prepare(self, options):
         instances, instances_dev, instances_test = [],[],[]
         instances, embeddings, vocab = self.prepare_for_training(options)
+        
         if ('dev' in self.doclst):
             instances_dev = self.prepare_for_test(options, 'dev')
+        
         instances_test = self.prepare_for_test( options, 'test')
         return instances, instances_dev, instances_test, embeddings, vocab
-
-    def prepare_notest(self, options):
-        instances, instances_dev, instances_test = [],[],[]
-        instances_, embeddings, vocab = self.prepare_for_training(options)
-        print(len(instances))
-        for bucket in instances_:
-            num_test = len(bucket) / 10
-            instances_test.append(bucket[:num_test])
-            instances.append(bucket[num_test:])
-
-        return instances, instances_dev, instances_test, embeddings, vocab
-
 
     def prepare_for_training(self, options):
         instancelst = []
         embeddings = np.zeros([len(self.vocab)+1,options['emb_size']])
+        
         for word in self.vocab:
             embeddings[self.vocab[word].index] = self.w2v_model[word]
+        
         self.vocab['UNK'] = gensim.models.word2vec.Vocab(count=0, index=len(self.vocab))
         n_filtered = 0
+        
         for i_doc, doc in enumerate(self.doclst['train']):
             instance = Instance()
             instance.idx = i_doc
             n_sents = len(doc.sent_token_lst)
             max_n_tokens = max([len(sent) for sent in doc.sent_token_lst])
+            
             if(n_sents>options['max_sents']):
                 n_filtered += 1
                 continue
+            
             if(max_n_tokens>options['max_tokens']):
                 n_filtered += 1
                 continue
+
             sent_token_idx = []
             for i in range(len(doc.sent_token_lst)):
                 token_idxs = []
@@ -191,24 +188,40 @@ class Corpus:
                         token_idxs.append(self.vocab['UNK'].index)
                 sent_token_idx.append(token_idxs)
             instance.token_idxs = sent_token_idx
-            instance.goldLabel = doc.goldRating
+            
+            abstract_token_idx = []
+            for i in range(len(doc.abstract_token_lst)):
+                token_idxs = []
+                for token in doc.abstract_token_lst[i]:
+                    if(token in self.vocab):
+                        token_idxs.append(self.vocab[token].index)
+                    else:
+                        token_idxs.append(self.vocab['UNK'].index)
+                abstract_token_idx.append(token_idxs)
+            instance.abstract_idxs = abstract_token_idx
+
             instancelst.append(instance)
         print('n_filtered in train: {}'.format(n_filtered))
         return instancelst, embeddings, self.vocab
+
     def prepare_for_test(self, options, name):
         instancelst = []
         n_filtered = 0
         for i_doc, doc in enumerate(self.doclst[name]):
             instance = Instance()
             instance.idx = i_doc
+            
             n_sents = len(doc.sent_token_lst)
             max_n_tokens = max([len(sent) for sent in doc.sent_token_lst])
+            
             if(n_sents>options['max_sents']):
                 n_filtered += 1
                 continue
+            
             if(max_n_tokens>options['max_tokens']):
                 n_filtered += 1
                 continue
+            
             sent_token_idx = []
             for i in range(len(doc.sent_token_lst)):
                 token_idxs = []
@@ -219,7 +232,18 @@ class Corpus:
                         token_idxs.append(self.vocab['UNK'].index)
                 sent_token_idx.append(token_idxs)
             instance.token_idxs = sent_token_idx
-            instance.goldLabel = doc.goldRating
+
+            abstract_token_idx = []
+            for i in range(len(doc.abstract_token_lst)):
+                token_idxs = []
+                for token in doc.abstract_token_lst[i]:
+                    if(token in self.vocab):
+                        token_idxs.append(self.vocab[token].index)
+                    else:
+                        token_idxs.append(self.vocab['UNK'].index)
+                abstract_token_idx.append(token_idxs)
+            instance.abstract_idxs = abstract_token_idx
             instancelst.append(instance)
+            
         print('n_filtered in {}: {}'.format(name, n_filtered))
         return instancelst
