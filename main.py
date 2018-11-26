@@ -52,13 +52,12 @@ def run(config):
     print(config.__flags)
     logger.critical(str(config.__flags))
 
-    # model = StructureModel(config)
-    # model.build()
-    # model.get_loss()
-    # # trainer = Trainer(config)
+    model = StructureModel(config)
+    model.build()
+    model.get_loss()
 
-    # num_batches_per_epoch = int(num_examples / config.batch_size)
-    # num_steps = config.epochs * num_batches_per_epoch
+    num_batches_per_epoch = int(num_examples / config.batch_size)
+    num_steps = config.epochs * num_batches_per_epoch
 
     # with tf.Session() as sess:
     #     gvi = tf.global_variables_initializer()

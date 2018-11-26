@@ -21,12 +21,31 @@ def dynamicBiRNN(input, seqlen, n_hidden, cell_type, cell_name=''):
         elif(cell_type == 'lstm'):
             bw_cell = tf.contrib.rnn.LSTMCell(n_hidden)
         bw_initial_state = bw_cell.zero_state(batch_size, tf.float32)
+    
     with tf.variable_scope(cell_name):
         outputs, output_states = tf.nn.bidirectional_dynamic_rnn(fw_cell, bw_cell, input,
                                                                  initial_state_fw=fw_initial_state,
                                                                  initial_state_bw=bw_initial_state,
                                                                  sequence_length=seqlen)
     return outputs, output_states
+
+
+
+
+def decoder(input, seqlen, n_hidden):
+    batch_size = tf.shape(input)[0]
+    with tf.variable_scope('decoder_cell', initializer=tf.contrib.layers.xavier_initializer(), dtype = tf.float32):
+        decoder_cell = tf.contrib.rnn.LSTMCell(n_hidden,state_is_tuple=True, initializer=self.rand_unif_init)
+
+    decoder_initial_state = decoder_cell.zero_state(batch_size, tf.float32)
+
+    with tf.variable_scope('decoder'):
+        outputs, output_states = tf.nn.dynamic_rnn(decoder_cell, input,
+                                                                 initial_state=decoder_initial_state,
+                                                                 sequence_length=seqlen)
+
+
+    return outputs, output_state
 
 def MLP(input, vname, keep_prob):
     dim_input  = input.shape[1]

@@ -1,6 +1,5 @@
-
 import tensorflow as tf
-from neural import dynamicBiRNN, LReLu, MLP, get_structure
+from neural import dynamicBiRNN, LReLu, MLP, get_structure, decoder
 import numpy as np
 
 
@@ -16,7 +15,8 @@ class StructureModel():
         t_variables['doc_l'] = tf.placeholder(tf.int32, [None])
         t_variables['max_sent_l'] = tf.placeholder(tf.int32)
         t_variables['max_doc_l'] = tf.placeholder(tf.int32)
-        t_variables['gold_labels'] = tf.placeholder(tf.int32, [None])
+        t_variables['abstract_idxs'] = tf.placeholder(tf.int32, [None, None, None])
+        t_variables['max_abstract_l'] = 120
         t_variables['mask_tokens'] = tf.placeholder(tf.float32, [None, None, None])
         t_variables['mask_sents'] = tf.placeholder(tf.float32, [None, None])
         t_variables['mask_parser_1'] = tf.placeholder(tf.float32, [None, None, None])
@@ -60,6 +60,8 @@ class StructureModel():
                      self.t_variables['mask_parser_1']: mask_parser_1, self.t_variables['mask_parser_2']: mask_parser_2,
                      self.t_variables['batch_l']: batch_size, self.t_variables['keep_prob']:self.config.keep_prob}
         return  feed_dict
+
+
 
     def build(self):
         with tf.variable_scope("Embeddings"):
@@ -182,6 +184,7 @@ class StructureModel():
             sents_output = sents_output + tf.expand_dims((mask_sents-1)*999,2)
             sents_output = tf.reduce_max(sents_output, 1)
 
+        final_output, final_output_states = decoder(sents_output,doc_l, n_hidden=self.config.dim_hidden)
         final_output = MLP(sents_output, 'output', self.t_variables['keep_prob'])
         self.final_output = tf.matmul(final_output, w_softmax) + b_softmax
 
