@@ -1,5 +1,5 @@
 import tensorflow as tf
-from neural import dynamicBiRNN, LReLu, MLP, get_structure, decoder
+from neural import dynamicBiRNN, decoding_layer, get_structure,LReLu 
 import numpy as np
 
 
@@ -30,32 +30,40 @@ class StructureModel():
         for i, instance in enumerate(batch):
             n_sents = len(instance.token_idxs)
             doc_l_matrix[i] = n_sents
+        
         max_doc_l = np.max(doc_l_matrix)
         max_sent_l = max([max([len(sent) for sent in doc.token_idxs]) for doc in batch])
+        
         token_idxs_matrix = np.zeros([batch_size, max_doc_l, max_sent_l], np.int32)
         sent_l_matrix = np.zeros([batch_size, max_doc_l], np.int32)
-        gold_matrix = np.zeros([batch_size], np.int32)
+        
+        abstract_idx_matrix = np.zeros([batch_size,max_doc_l,max_sent_l], np.int32)
+
         mask_tokens_matrix = np.ones([batch_size, max_doc_l, max_sent_l], np.float32)
         mask_sents_matrix = np.ones([batch_size, max_doc_l], np.float32)
+
         for i, instance in enumerate(batch):
             n_sents = len(instance.token_idxs)
-            gold_matrix[i] = instance.goldLabel
+            abstract_idx_matrix[i] = instance.abstract_idxs
+
             for j, sent in enumerate(instance.token_idxs):
                 token_idxs_matrix[i, j, :len(sent)] = np.asarray(sent)
                 mask_tokens_matrix[i, j, len(sent):] = 0
                 sent_l_matrix[i, j] = len(sent)
             mask_sents_matrix[i, n_sents:] = 0
+        
         mask_parser_1 = np.ones([batch_size, max_doc_l, max_doc_l], np.float32)
         mask_parser_2 = np.ones([batch_size, max_doc_l, max_doc_l], np.float32)
         mask_parser_1[:, :, 0] = 0
         mask_parser_2[:, 0, :] = 0
+        
         if (self.config.large_data):
             if (batch_size * max_doc_l * max_sent_l * max_sent_l > 16 * 200000):
                 return [batch_size * max_doc_l * max_sent_l * max_sent_l / (16 * 200000) + 1]
 
         feed_dict = {self.t_variables['token_idxs']: token_idxs_matrix, self.t_variables['sent_l']: sent_l_matrix,
                      self.t_variables['mask_tokens']: mask_tokens_matrix, self.t_variables['mask_sents']: mask_sents_matrix,
-                     self.t_variables['doc_l']: doc_l_matrix, self.t_variables['gold_labels']: gold_matrix,
+                     self.t_variables['doc_l']: doc_l_matrix, self.t_variables['abstract_idxs']: abstract_idx_matrix,
                      self.t_variables['max_sent_l']: max_sent_l, self.t_variables['max_doc_l']: max_doc_l,
                      self.t_variables['mask_parser_1']: mask_parser_1, self.t_variables['mask_parser_2']: mask_parser_2,
                      self.t_variables['batch_l']: batch_size, self.t_variables['keep_prob']:self.config.keep_prob}
@@ -184,24 +192,42 @@ class StructureModel():
             sents_output = sents_output + tf.expand_dims((mask_sents-1)*999,2)
             sents_output = tf.reduce_max(sents_output, 1)
 
-        final_output, final_output_states = decoder(sents_output,doc_l, n_hidden=self.config.dim_hidden)
-        final_output = MLP(sents_output, 'output', self.t_variables['keep_prob'])
-        self.final_output = tf.matmul(final_output, w_softmax) + b_softmax
+        print 'ENCODER OUTPUTSHAPE: ', sents_output.shape
+        train_output, infer_output = decoding_layer(self.t_variables['abstract_idxs'], sents_output, self.config)
+        print 'REACHING DECODER', train_output.shape, infer_output.shape
+        
 
-    def get_loss(self):
-        if (self.config.opt == 'Adam'):
-            optimizer = tf.train.AdamOptimizer(self.config.lr)
-        elif (self.config.opt == 'Adagrad'):
-            optimizer = tf.train.AdagradOptimizer(self.config.lr)
-        with tf.variable_scope("Model"):
-            self.loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.final_output,
-                                                                  labels=self.t_variables['gold_labels'])
-            self.loss = tf.reduce_mean(self.loss)
-            model_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'Model')
-            str_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'Structure')
-            for p in model_params + str_params:
-                if ('bias' not in p.name):
-                    self.loss += self.config.norm * tf.nn.l2_loss(p)
-            self.opt = optimizer.minimize(self.loss)
+        with tf.variable_scope('output_projection'):
+            w = tf.get_variable('w', [self.config.dim_hidden, self.config.vsize], dtype=tf.float32, initializer=self.trunc_norm_init)
+            w_t = tf.transpose(w)
+            v = tf.get_variable('v', [self.config.vsize], dtype=tf.float32, initializer=self.trunc_norm_init)
+            vocab_scores = [] # vocab_scores is the vocabulary distribution before applying softmax. Each entry on the list corresponds to one decoder step
+            for i,output in enumerate(decoder_outputs):
+                if i > 0:
+                    tf.get_variable_scope().reuse_variables()
+            vocab_scores.append(tf.nn.xw_plus_b(output, w, v)) # apply the linear layer
 
+        vocab_dists = [tf.nn.softmax(s) for s in vocab_scores] # The vocabulary distributions. List length max_dec_steps of (batch_size, vsize) arrays. The words are in the order they appear in the vocabulary file.
+        self._loss = tf.contrib.seq2seq.sequence_loss(tf.stack(vocab_scores, axis=1), self._target_batch, self._dec_padding_mask) # this applies softmax internally
+
+        tvars = tf.trainable_variables()
+        gradients = tf.gradients(loss_to_minimize, tvars, aggregation_method=tf.AggregationMethod.EXPERIMENTAL_TREE)
+
+        # Clip the gradients
+        with tf.device("/gpu:0"):
+            grads, global_norm = tf.clip_by_global_norm(gradients, self._hps.max_grad_norm)
+
+        # Add a summary
+        tf.summary.scalar('global_n2orm', global_norm)
+
+        # Apply adagrad optimizer
+        optimizer = tf.train.AdagradOptimizer(self.config.lr, initial_accumulator_value=self._hps.adagrad_init_acc)
+        with tf.device("/gpu:0"):
+            self._train_op = optimizer.apply_gradients(zip(grads, tvars), global_step=self.global_step, name='train_step')
+
+
+
+
+        # final_output = MLP(sents_output, 'output', self.t_variables['keep_prob'])
+        # self.final_output = tf.matmul(final_output, w_softmax) + b_softmax
 

@@ -30,8 +30,6 @@ def dynamicBiRNN(input, seqlen, n_hidden, cell_type, cell_name=''):
     return outputs, output_states
 
 
-
-
 def decoder(input, seqlen, n_hidden):
     batch_size = tf.shape(input)[0]
     with tf.variable_scope('decoder_cell', initializer=tf.contrib.layers.xavier_initializer(), dtype = tf.float32):
@@ -47,26 +45,53 @@ def decoder(input, seqlen, n_hidden):
 
     return outputs, output_state
 
-def MLP(input, vname, keep_prob):
-    dim_input  = input.shape[1]
-    with tf.variable_scope("Model"):
-        w1 = tf.get_variable("w1_"+vname,[dim_input, dim_input],
-                            dtype=tf.float32,
-                            initializer=tf.contrib.layers.xavier_initializer())
-        b1 = tf.get_variable("bias1_" + vname,[dim_input],
-                            dtype=tf.float32,
-                            initializer=tf.constant_initializer())
-        w2 = tf.get_variable("w2_" + vname,[dim_input, dim_input],
-                            dtype=tf.float32,
-                            initializer=tf.contrib.layers.xavier_initializer())
-        b2 = tf.get_variable("bias2_" + vname,[dim_input],
-                            dtype=tf.float32,
-                             initializer=tf.constant_initializer())
-    input = tf.nn.dropout(input,keep_prob)
-    h1 = LReLu(tf.matmul(input, w1) + b1)
-    h1 = tf.nn.dropout(h1,keep_prob)
-    h2 = LReLu(tf.matmul(h1, w2) + b2)
-    return h2
+
+def decoding_layer_train(encoder_state, dec_cell, dec_embed_input,target_sequence_length, max_summary_length,output_layer, keep_prob):
+    dec_cell = tf.contrib.rnn.DropoutWrapper(dec_cell, output_keep_prob=keep_prob)
+    helper = tf.contrib.seq2seq.TrainingHelper(dec_embed_input,target_sequence_length)
+    decoder = tf.contrib.seq2seq.BasicDecoder(dec_cell,helper,encoder_state,output_layer)
+
+    outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(decoder, impute_finished=True, maximum_iterations=max_summary_length)
+    return outputs
+
+def decoding_layer_infer(encoder_state, dec_cell, dec_embeddings, start_of_sequence_id,end_of_sequence_id, max_target_sequence_length,
+                         vocab_size, output_layer, batch_size, keep_prob):
+   
+    dec_cell = tf.contrib.rnn.DropoutWrapper(dec_cell,output_keep_prob=keep_prob)
+    helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(dec_embeddings, tf.fill([batch_size], start_of_sequence_id), end_of_sequence_id)
+    decoder = tf.contrib.seq2seq.BasicDecoder(dec_cell,helper,encoder_state,output_layer)
+    
+    outputs, _,_ = tf.contrib.seq2seq.dynamic_decode(decoder, impute_finished=True,maximum_iterations=max_target_sequence_length)
+    return outputs
+
+def decoding_layer(dec_input, encoder_state,config):
+    
+    target_sequence_length = target_sequence_length = tf.placeholder(tf.int32, [None], name='target_sequence_length')
+    max_target_sequence_length = 100
+
+    target_vocab_size = config.vsize
+    decoding_embedding_size = config.dim_hidden
+
+    dec_embeddings = tf.Variable(tf.random_uniform([target_vocab_size, decoding_embedding_size]))
+    dec_embed_input = tf.nn.embedding_lookup(dec_embeddings, dec_input)
+    
+    cells = tf.contrib.rnn.LSTMCell(config.dim_hidden,state_is_tuple=True, initializer=tf.contrib.layers.xavier_initializer())
+    
+    keep_prob = config.keep_prob
+    batch_size = config.batch_size
+
+    target_vocab_to_int = config.vocab
+
+    with tf.variable_scope("decode"):
+        output_layer = tf.layers.Dense(target_vocab_size)
+        train_output = decoding_layer_train(encoder_state,cells,dec_embed_input,target_sequence_length,max_target_sequence_length, 
+                                            output_layer,keep_prob)
+
+    with tf.variable_scope("decode", reuse=True):
+        infer_output = decoding_layer_infer(encoder_state,cells,dec_embeddings,target_vocab_to_int['<GO>'],target_vocab_to_int['<EOS>'], 
+                                            max_target_sequence_length,target_vocab_size,output_layer,batch_size,keep_prob)
+
+    return (train_output, infer_output)
 
 
 def get_structure(name, input, max_l, mask_parser_1, mask_parser_2):
