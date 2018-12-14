@@ -30,21 +30,18 @@ def dynamicBiRNN(input, seqlen, n_hidden, cell_type, cell_name=''):
     return outputs, output_states
 
 
-def decoder(input, seqlen, n_hidden):
-    batch_size = tf.shape(input)[0]
-    with tf.variable_scope('decoder_cell', initializer=tf.contrib.layers.xavier_initializer(), dtype = tf.float32):
-        decoder_cell = tf.contrib.rnn.LSTMCell(n_hidden,state_is_tuple=True, initializer=self.rand_unif_init)
+def process_decoder_input(target_data, config):
+    # get '<GO>' id
+    go_id = 153632
+    batch_size = config.batch_size
 
-    decoder_initial_state = decoder_cell.zero_state(batch_size, tf.float32)
-
-    with tf.variable_scope('decoder'):
-        outputs, output_states = tf.nn.dynamic_rnn(decoder_cell, input,
-                                                                 initial_state=decoder_initial_state,
-                                                                 sequence_length=seqlen)
+    after_slice = tf.strided_slice(target_data, [0, 0], [batch_size, -1], [1, 1])
+    after_concat = tf.concat( [tf.fill([batch_size, 1], go_id), after_slice], 1)
+    
+    return after_concat
 
 
-    return outputs, output_state
-
+#Decoder architecture starts here
 
 def decoding_layer_train(encoder_state, dec_cell, dec_embed_input,target_sequence_length, max_summary_length,output_layer, keep_prob):
     dec_cell = tf.contrib.rnn.DropoutWrapper(dec_cell, output_keep_prob=keep_prob)
@@ -66,7 +63,7 @@ def decoding_layer_infer(encoder_state, dec_cell, dec_embeddings, start_of_seque
 
 def decoding_layer(dec_input, encoder_state,config):
     
-    target_sequence_length = target_sequence_length = tf.placeholder(tf.int32, [None], name='target_sequence_length')
+    target_sequence_length = tf.placeholder(tf.int32, [None], name='target_sequence_length')
     max_target_sequence_length = 100
 
     target_vocab_size = config.vsize
@@ -88,11 +85,12 @@ def decoding_layer(dec_input, encoder_state,config):
                                             output_layer,keep_prob)
 
     with tf.variable_scope("decode", reuse=True):
-        infer_output = decoding_layer_infer(encoder_state,cells,dec_embeddings,target_vocab_to_int['<GO>'],target_vocab_to_int['<EOS>'], 
+        infer_output = decoding_layer_infer(encoder_state,cells,dec_embeddings,153632,target_vocab_to_int['<EOS>'], 
                                             max_target_sequence_length,target_vocab_size,output_layer,batch_size,keep_prob)
 
     return (train_output, infer_output)
 
+#Decoder architecture finishes here
 
 def get_structure(name, input, max_l, mask_parser_1, mask_parser_2):
     def _getDep(input, mask1, mask2):
@@ -126,6 +124,7 @@ def get_structure(name, input, max_l, mask_parser_1, mask_parser_2):
         L = tf.reduce_sum(A, 1)
         L = tf.matrix_diag(L)
         L = L - A
+
         LL = L[:, 1:, :]
         LL = tf.concat([tf.expand_dims(r, [1]), LL], 1)
         LL_inv = tf.matrix_inverse(LL)  #batch_l, doc_l, doc_l
