@@ -15,10 +15,12 @@ class StructureModel():
         t_variables['doc_l'] = tf.placeholder(tf.int32, [None])
         t_variables['max_sent_l'] = tf.placeholder(tf.int32)
         t_variables['max_doc_l'] = tf.placeholder(tf.int32)
+        t_variables['max_answers']=tf.placeholder(tf.int32)
         t_variables['abstract_idxs'] = tf.placeholder(tf.int32, [None, None, None])
         t_variables['max_abstract_l'] = 120
-        t_variables['mask_tokens'] = tf.placeholder(tf.float32, [None, None, None])
-        t_variables['mask_sents'] = tf.placeholder(tf.float32, [None, None])
+        t_variables['mask_tokens'] = tf.placeholder(tf.float32, [None, None, None,None])
+        t_variables['mask_sents'] = tf.placeholder(tf.float32, [None, None,None])
+        t_variables['mask_answers']= tf.placeholder(tf.float32,[None,None])
         t_variables['mask_parser_1'] = tf.placeholder(tf.float32, [None, None, None])
         t_variables['mask_parser_2'] = tf.placeholder(tf.float32, [None, None, None])
         self.t_variables = t_variables
@@ -73,16 +75,25 @@ class StructureModel():
 
     def build(self):
         with tf.variable_scope("Embeddings"):
+            #Initial embedding placeholders
             self.embeddings = tf.get_variable("emb", [self.config.n_embed, self.config.d_embed], dtype=tf.float32,
                                          initializer=tf.contrib.layers.xavier_initializer())
             embeddings_root = tf.get_variable("emb_root", [1, 1, 2 * self.config.dim_sem], dtype=tf.float32,
                                                   initializer=tf.contrib.layers.xavier_initializer())
+            embeddings_root_a = tf.get_variable("emb_root_ans", [1, 1,2* self.config.dim_sem], dtype=tf.float32,
+                                                    initializer=tf.contrib.layers.xavier_initializer())
             embeddings_root_s = tf.get_variable("emb_root_s", [1, 1,2* self.config.dim_sem], dtype=tf.float32,
                                                     initializer=tf.contrib.layers.xavier_initializer())
+
         with tf.variable_scope("Model"):
+            #Weights and biases at pooling layers and final softmax for output. (Fianl might not be required)(Semantic combination part)
             w_comb = tf.get_variable("w_comb", [4 * self.config.dim_sem, 2 * self.config.dim_sem], dtype=tf.float32,
                             initializer=tf.contrib.layers.xavier_initializer())
             b_comb = tf.get_variable("bias_comb", [2 * self.config.dim_sem], dtype=tf.float32, initializer=tf.constant_initializer())
+
+            w_comb_a = tf.get_variable("w_comb_a", [4 * self.config.dim_sem, 2 * self.config.dim_sem], dtype=tf.float32,
+                            initializer=tf.contrib.layers.xavier_initializer())
+            b_comb_a = tf.get_variable("bias_comb_a", [2 * self.config.dim_sem], dtype=tf.float32, initializer=tf.constant_initializer())
 
             w_comb_s = tf.get_variable("w_comb_s", [4 * self.config.dim_sem, 2 * self.config.dim_sem], dtype=tf.float32,
                             initializer=tf.contrib.layers.xavier_initializer())
@@ -94,6 +105,7 @@ class StructureModel():
                             initializer=tf.contrib.layers.xavier_initializer())
 
         with tf.variable_scope("Structure/doc"):
+            #Placeholders for hierarchial model at document level(structural part)
             tf.get_variable("w_parser_p", [2 * self.config.dim_str, 2 * self.config.dim_str],
                             dtype=tf.float32,
                             initializer=tf.contrib.layers.xavier_initializer())
@@ -105,28 +117,30 @@ class StructureModel():
             tf.get_variable("bias_parser_p", [2 * self.config.dim_str], dtype=tf.float32,
                             initializer=tf.contrib.layers.xavier_initializer())
             tf.get_variable("bias_parser_c", [2 * self.config.dim_str], dtype=tf.float32,
-                            initializer=tf.contrib.layers.xavier_initializer())
-            tf.get_variable("w_parser_root", [2 * self.config.dim_str, 1], dtype=tf.float32,
-                            initializer=tf.contrib.layers.xavier_initializer())
-
-        with tf.variable_scope("Structure/sent"):
-            tf.get_variable("w_parser_p", [2 * self.config.dim_str, 2 * self.config.dim_str],
-                            dtype=tf.float32,
-                            initializer=tf.contrib.layers.xavier_initializer())
-            tf.get_variable("w_parser_c", [2 * self.config.dim_str, 2 * self.config.dim_str],
-                            dtype=tf.float32,
-                            initializer=tf.contrib.layers.xavier_initializer())
-            tf.get_variable("bias_parser_p", [2 * self.config.dim_str], dtype=tf.float32,
-                            initializer=tf.contrib.layers.xavier_initializer())
-            tf.get_variable("bias_parser_c", [2 * self.config.dim_str], dtype=tf.float32,
-                            initializer=tf.contrib.layers.xavier_initializer())
-
-            tf.get_variable("w_parser_s", [2 * self.config.dim_str, 2 * self.config.dim_str], dtype=tf.float32,
                             initializer=tf.contrib.layers.xavier_initializer())
             tf.get_variable("w_parser_root", [2 * self.config.dim_str, 1], dtype=tf.float32,
                             initializer=tf.contrib.layers.xavier_initializer())
 
         with tf.variable_scope("Structure/ans"):
+            #Placeholders for  hierarchial model at answer level(structural part)
+            tf.get_variable("w_parser_p", [2 * self.config.dim_str, 2 * self.config.dim_str],
+                            dtype=tf.float32,
+                            initializer=tf.contrib.layers.xavier_initializer())
+            tf.get_variable("w_parser_c", [2 * self.config.dim_str, 2 * self.config.dim_str],
+                            dtype=tf.float32,
+                            initializer=tf.contrib.layers.xavier_initializer())
+            tf.get_variable("bias_parser_p", [2 * self.config.dim_str], dtype=tf.float32,
+                            initializer=tf.contrib.layers.xavier_initializer())
+            tf.get_variable("bias_parser_c", [2 * self.config.dim_str], dtype=tf.float32,
+                            initializer=tf.contrib.layers.xavier_initializer())
+
+            tf.get_variable("w_parser_s", [2 * self.config.dim_str, 2 * self.config.dim_str], dtype=tf.float32,
+                            initializer=tf.contrib.layers.xavier_initializer())
+            tf.get_variable("w_parser_root", [2 * self.config.dim_str, 1], dtype=tf.float32,
+                            initializer=tf.contrib.layers.xavier_initializer())
+
+        with tf.variable_scope("Structure/sent"):
+            #Placeholders for hierarchial model at sentence level(structural part)
             tf.get_variable("w_parser_p", [2 * self.config.dim_str, 2 * self.config.dim_str],
                             dtype=tf.float32,
                             initializer=tf.contrib.layers.xavier_initializer())
@@ -145,15 +159,23 @@ class StructureModel():
 
         sent_l = self.t_variables['sent_l']
         doc_l = self.t_variables['doc_l']
+        
+        #Maximum lengths of sentences, answers and documents to be processed
         max_sent_l = self.t_variables['max_sent_l']
         max_doc_l = self.t_variables['max_doc_l']
+        max_answers = self.t_variables['max_answers']
+
+        #batch size
         batch_l = self.t_variables['batch_l']
 
-        tokens_input = tf.nn.embedding_lookup(self.embeddings, self.t_variables['token_idxs'][:, :max_doc_l, :max_sent_l])
+        tokens_input = tf.nn.embedding_lookup(self.embeddings, self.t_variables['token_idxs'][:,:max_answers, :max_doc_l, :max_sent_l])
         tokens_input = tf.nn.dropout(tokens_input, self.t_variables['keep_prob'])
 
-        mask_tokens = self.t_variables['mask_tokens'][:, :max_doc_l, :max_sent_l]
-        mask_sents = self.t_variables['mask_sents'][:, :max_doc_l]
+
+        mask_tokens = self.t_variables['mask_tokens'][:,:max_answers, :max_doc_l, :max_sent_l]
+        mask_sents = self.t_variables['mask_sents'][:, :max_answers,:max_doc_l]
+        mask_answers = self.t_variables['mask_answers'][:,:max_answers]
+
         [_, _, _, rnn_size] = tokens_input.get_shape().as_list()
         tokens_input_do = tf.reshape(tokens_input, [batch_l * max_doc_l, max_sent_l, rnn_size])
 
@@ -162,8 +184,10 @@ class StructureModel():
 
         tokens_output, _ = dynamicBiRNN(tokens_input_do, sent_l, n_hidden=self.config.dim_hidden,
                                         cell_type=self.config.rnn_cell, cell_name='Model/sent')
+        
         tokens_sem = tf.concat([tokens_output[0][:,:,:self.config.dim_sem], tokens_output[1][:,:,:self.config.dim_sem]], 2)
         tokens_str = tf.concat([tokens_output[0][:,:,self.config.dim_sem:], tokens_output[1][:,:,self.config.dim_sem:]], 2)
+        
         temp1 = tf.zeros([batch_l * max_doc_l, max_sent_l,1], tf.float32)
         temp2 = tf.zeros([batch_l * max_doc_l,1,max_sent_l], tf.float32)
 
