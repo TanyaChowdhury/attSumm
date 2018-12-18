@@ -179,7 +179,7 @@ class StructureModel():
         [_, _, _, _, rnn_size] = tokens_input.get_shape().as_list()
         tokens_input_do = tf.reshape(tokens_input, [batch_l * max_answers,max_doc_l, max_sent_l, rnn_size])
 
-        sent_l = tf.reshape(sent_l, [batch_l * max_doc_l])
+        sent_l = tf.reshape(sent_l, [batch_l * max_answers *max_doc_l])
         mask_tokens = tf.reshape(mask_tokens, [batch_l * max_doc_l, -1])
 
         #Word level input
@@ -237,27 +237,27 @@ class StructureModel():
             sents_output = tf.reduce_max(sents_output, 1)
 
         #Answer level RNN
-        sents_input = tf.reshape(tokens_output, [batch_l, max_doc_l, 2*self.config.dim_sem])
-        sents_output, _ = dynamicBiRNN(sents_input, doc_l, n_hidden=self.config.dim_hidden, cell_type=self.config.rnn_cell, cell_name='Model/doc')
+        ans_input = tf.reshape(sents_output, [batch_l, max_doc_l, 2*self.config.dim_sem])
+        ans_output, _ = dynamicBiRNN(ans_input, doc_l, n_hidden=self.config.dim_hidden, cell_type=self.config.rnn_cell, cell_name='Model/ans')
 
-        sents_sem = tf.concat([sents_output[0][:,:,:self.config.dim_sem], sents_output[1][:,:,:self.config.dim_sem]], 2)
-        sents_str = tf.concat([sents_output[0][:,:,self.config.dim_sem:], sents_output[1][:,:,self.config.dim_sem:]], 2)
+        ans_sem = tf.concat([ans_output[0][:,:,:self.config.dim_sem], ans_output[1][:,:,:self.config.dim_sem]], 2)
+        ans_str = tf.concat([avs_output[0][:,:,self.config.dim_sem:], ans_output[1][:,:,self.config.dim_sem:]], 2)
 
-        str_scores_ = get_structure('doc', sents_str,max_doc_l, self.t_variables['mask_parser_1'], self.t_variables['mask_parser_2'])  #batch_l,  sent_l+1, sent_l
+        str_scores_ = get_structure('ans', sents_str,max_doc_l, self.t_variables['mask_parser_1'], self.t_variables['mask_parser_2'])  #batch_l,  sent_l+1, sent_l
         str_scores = tf.matrix_transpose(str_scores_)  # soft parent
-        sents_sem_root = tf.concat([tf.tile(embeddings_root, [batch_l, 1, 1]), sents_sem], 1)
-        sents_output_ = tf.matmul(str_scores, sents_sem_root)
-        sents_output = LReLu(tf.tensordot(tf.concat([sents_sem, sents_output_], 2), w_comb, [[2], [0]]) + b_comb)
+        ans_sem_root = tf.concat([tf.tile(embeddings_root, [batch_l, 1, 1]), sents_sem], 1)
+        ans_output_ = tf.matmul(str_scores, ans_sem_root)
+        ans_output = LReLu(tf.tensordot(tf.concat([ans_sem, sents_output_], 2), w_comb, [[2], [0]]) + b_comb)
 
         if (self.config.doc_attention == 'sum'):
-            sents_output = sents_output * tf.expand_dims(mask_sents,2)
-            sents_output = tf.reduce_sum(sents_output, 1)
+            ans_output = ans_output * tf.expand_dims(mask_answers,2)
+            ans_output = tf.reduce_sum(ans_output, 1)
         elif (self.config.doc_attention == 'mean'):
-            sents_output = sents_output * tf.expand_dims(mask_sents,2)
-            sents_output = tf.reduce_sum(sents_output, 1)/tf.expand_dims(tf.cast(doc_l,tf.float32),1)
+            ans_output = ans_output * tf.expand_dims(mask_answers,2)
+            ans_output = tf.reduce_sum(ans_output, 1)/tf.expand_dims(tf.cast(doc_l,tf.float32),1)
         elif (self.config.doc_attention == 'max'):
-            sents_output = sents_output + tf.expand_dims((mask_sents-1)*999,2)
-            sents_output = tf.reduce_max(sents_output, 1)
+            ans_output = ans_output + tf.expand_dims((mask_answers-1)*999,2)
+            ans_output = tf.reduce_max(ans_output, 1)
 
 
         #Placeholders for decoder inputs and targets
@@ -267,7 +267,7 @@ class StructureModel():
 
         decoder_input = process_decoder_input(targets,self.config)
 
-        train_output, infer_output = decoding_layer(decoder_input, sents_output, self.config)
+        train_output, infer_output = decoding_layer(decoder_input, ans_output, self.config)
         print 'FINISHED DECODER', train_output.shape, infer_output.shape
         
         if mode == 'train' :
