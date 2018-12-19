@@ -15,7 +15,7 @@ from main import run as m
 flags = tf.app.flags
 
 flags.DEFINE_string("rnn_cell", "lstm", "rnn_cell")
-flags.DEFINE_string("data_file", "Data/CQA1.pkl", "data_file")
+flags.DEFINE_string("data_file", "Data/CQA.pkl", "data_file")
 
 flags.DEFINE_integer("batch_size", 16, "batch_size")
 flags.DEFINE_integer("epochs", 30, "epochs")
