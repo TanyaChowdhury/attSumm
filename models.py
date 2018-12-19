@@ -260,11 +260,11 @@ class StructureModel():
             sents_output = tf.reduce_max(sents_output, 1)
 
         #Answer level RNN
-        ans_input = tf.reshape(sents_output, [batch_l, max_doc_l, 2*self.config.dim_sem])
-        ans_output, _ = dynamicBiRNN(ans_input, doc_l, n_hidden=self.config.dim_hidden, cell_type=self.config.rnn_cell, cell_name='Model/ans')
+        ans_input = tf.reshape(sents_output, [batch_l, max_doc_l, max_ans_l,2*self.config.dim_sem])
+        ans_output, _ = dynamicBiRNN(ans_input, ans_l, n_hidden=self.config.dim_hidden, cell_type=self.config.rnn_cell, cell_name='Model/ans')
 
         ans_sem = tf.concat([ans_output[0][:,:,:self.config.dim_sem], ans_output[1][:,:,:self.config.dim_sem]], 2)
-        ans_str = tf.concat([avs_output[0][:,:,self.config.dim_sem:], ans_output[1][:,:,self.config.dim_sem:]], 2)
+        ans_str = tf.concat([ans_output[0][:,:,self.config.dim_sem:], ans_output[1][:,:,self.config.dim_sem:]], 2)
 
         str_scores_ = get_structure('ans', sents_str,max_doc_l, self.t_variables['mask_parser_1'], self.t_variables['mask_parser_2'])  #batch_l,  sent_l+1, sent_l
         str_scores = tf.matrix_transpose(str_scores_)  # soft parent
