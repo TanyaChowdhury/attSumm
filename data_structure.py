@@ -174,12 +174,12 @@ class Corpus:
     
     def prepare(self, options):
         instances, instances_dev, instances_test = [],[],[]
-        instances, embeddings, vocab = self.prepare(options,'train')
+        instances, embeddings, vocab = self.prepareData(options,'train')
         
         if ('dev' in self.doclst):
-            instances_dev = self.prepare(options, 'dev')
+            instances_dev = self.prepareData(options, 'dev')
         
-        instances_test = self.prepare( options, 'test')
+        instances_test = self.prepareData(options, 'test')
         return instances, instances_dev, instances_test, embeddings, vocab
 
     def prepare(self, options,mode):

@@ -4,8 +4,8 @@ import argparse
 import cPickle
 def main():
     corpus = Corpus()
-    corpus.load('Data/cqa.test', 'train')
-    corpus.load('Data/cqa.test', 'dev')
+    corpus.load('Data/cqa.train', 'train')
+    corpus.load('Data/cqa.dev', 'dev')
     corpus.load('Data/cqa.test', 'test')
     corpus.preprocess()
     
