@@ -1,4 +1,4 @@
-# import gensim
+import gensim
 import numpy as np
 import re
 import random
@@ -182,7 +182,7 @@ class Corpus:
         instances_test = self.prepareData(options, 'test')
         return instances, instances_dev, instances_test, embeddings, vocab
 
-    def prepare(self, options,mode):
+    def prepareData(self, options,mode):
         instancelst = []
 
         if(mode=='train'):        

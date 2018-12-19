@@ -4,9 +4,9 @@ import argparse
 import cPickle
 def main():
     corpus = Corpus()
-    corpus.load('Data/cqa.train', 'train')
-    corpus.load('Data/cqa.dev', 'dev')
-    corpus.load('Data/cqa.test', 'test')
+    corpus.load('Data/CQA/cqa.train', 'train')
+    corpus.load('Data/CQA/cqa.dev', 'dev')
+    corpus.load('Data/CQA/cqa.test', 'test')
     corpus.preprocess()
     
     options =  dict(max_answers=15, max_sents=60, max_tokens=100, skip_gram=False, emb_size=200)
