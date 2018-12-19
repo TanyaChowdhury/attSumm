@@ -170,7 +170,9 @@ class StructureModel():
             tf.get_variable("w_parser_root", [2 * self.config.dim_str, 1], dtype=tf.float32,
                             initializer=tf.contrib.layers.xavier_initializer())
 
+
         sent_l = self.t_variables['sent_l']
+        ans_l = self.t_variables['ans_l']
         doc_l = self.t_variables['doc_l']
         
         #Maximum lengths of sentences, answers and documents to be processed
@@ -181,14 +183,18 @@ class StructureModel():
         #batch size
         batch_l = self.t_variables['batch_l']
 
+        #Creating embedding matrices for answers and abstracts corresponding to indexes
         tokens_input = tf.nn.embedding_lookup(self.embeddings, self.t_variables['token_idxs'][:,:max_doc_l, :max_ans_l, :max_sent_l])
         reference_input = tf.nn.embedding_lookup(self.embeddings,self.t_variables['abstract_idxs'][:,:max_abstract_l,:max_abstract_sent_l])
         
+        #Dropout on input
         tokens_input = tf.nn.dropout(tokens_input, self.t_variables['keep_prob'])
 
+        #Masking inputs
         mask_tokens = self.t_variables['mask_tokens'][:,:max_doc_l, :max_ans_l, :max_sent_l]
         mask_sents = self.t_variables['mask_sents'][:, :max_doc_l,:max_ans_l]
         mask_answers = self.t_variables['mask_answers'][:,:max_doc_l]
+
 
         [_, _, _, _, rnn_size] = tokens_input.get_shape().as_list()
         tokens_input_do = tf.reshape(tokens_input, [batch_l * max_doc_l,max_ans_l, max_sent_l, rnn_size])
@@ -203,11 +209,11 @@ class StructureModel():
         tokens_sem = tf.concat([tokens_output[0][:,:,:self.config.dim_sem], tokens_output[1][:,:,:self.config.dim_sem]], 2)
         tokens_str = tf.concat([tokens_output[0][:,:,self.config.dim_sem:], tokens_output[1][:,:,self.config.dim_sem:]], 2)
         
-        temp1 = tf.zeros([batch_l * max_doc_l, max_sent_l,1], tf.float32)
-        temp2 = tf.zeros([batch_l * max_doc_l,1,max_sent_l], tf.float32)
+        temp1 = tf.zeros([batch_l * max_doc_l,max_ans_l, max_sent_l,1], tf.float32)
+        temp2 = tf.zeros([batch_l * max_doc_l,max_ans_l ,1,max_sent_l], tf.float32)
 
-        mask1 = tf.ones([batch_l * max_doc_l, max_sent_l, max_sent_l-1], tf.float32)
-        mask2 = tf.ones([batch_l * max_doc_l, max_sent_l-1, max_sent_l], tf.float32)
+        mask1 = tf.ones([batch_l * max_doc_l, max_ans_l, max_sent_l, max_sent_l-1], tf.float32)
+        mask2 = tf.ones([batch_l * max_doc_l, max_ans_l, max_sent_l-1, max_sent_l], tf.float32)
         mask1 = tf.concat([temp1,mask1],2)
         mask2 = tf.concat([temp2,mask2],1)
 
@@ -275,14 +281,9 @@ class StructureModel():
 
 
         #Placeholders for decoder inputs and targets
-        targets = tf.placeholder(tf.int32, [None, None], name='targets') 
-        target_sequence_length = tf.placeholder(tf.int32, [None], name='target_sequence_length')
-        max_target_len = tf.reduce_max(target_sequence_length) 
-
         decoder_input = process_decoder_input(targets,self.config)
 
         train_output, infer_output = decoding_layer(decoder_input, ans_output, self.config)
-        print 'FINISHED DECODER', train_output.shape, infer_output.shape
         
         if mode == 'train' :
             decoder_output = train_output
