@@ -208,7 +208,7 @@ class Corpus:
                 n_filtered+=1
                 continue
 
-            if(n_sents>options['max_sents']):
+            if(max_n_sents>options['max_sents']):
                 n_filtered += 1
                 continue
             
