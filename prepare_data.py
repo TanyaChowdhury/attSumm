@@ -9,7 +9,7 @@ def main():
     corpus.load('Data/CQA/cqa.test', 'test')
     corpus.preprocess()
     
-    options =  dict(max_answers=15, max_sents=60, max_tokens=100, skip_gram=False, emb_size=200)
+    options =  dict(max_answers=20, max_sents=100, max_tokens=120, skip_gram=False, emb_size=200)
     print('Start training word embeddings')
     corpus.w2v(options)
 
