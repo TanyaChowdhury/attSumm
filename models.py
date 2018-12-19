@@ -284,10 +284,7 @@ class StructureModel():
             ans_output = ans_output + tf.expand_dims((mask_answers-1)*999,2)
             ans_output = tf.reduce_max(ans_output, 1)
 
-
-        #Placeholders for decoder inputs and targets
-        decoder_input = process_decoder_input(targets,self.config)
-
+        targets = self.t_variables['abstract_idxs']
         train_output, infer_output = decoding_layer(decoder_input, ans_output, self.config)
         
         if mode == 'train' :
