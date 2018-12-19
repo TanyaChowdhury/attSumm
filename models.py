@@ -10,19 +10,32 @@ class StructureModel():
         t_variables = {}
         t_variables['keep_prob'] = tf.placeholder(tf.float32)
         t_variables['batch_l'] = tf.placeholder(tf.int32)
-        t_variables['token_idxs'] = tf.placeholder(tf.int32, [None, None, None])
-        t_variables['sent_l'] = tf.placeholder(tf.int32, [None, None])
+        
+        #Placeholder for answers and abstracts
+        t_variables['token_idxs'] = tf.placeholder(tf.int32, [None, None, None, None])
+        t_variables['abstract_idxs'] = tf.placeholder(tf.int32, [None,None,None])
+
+        #Storing length of each heirarchy element
+        t_variables['sent_l'] = tf.placeholder(tf.int32, [None, None,None])
+        t_variables['ans_l'] = tf.placeholder(tf.int32, [None, None])
         t_variables['doc_l'] = tf.placeholder(tf.int32, [None])
+        t_variables['abstract_sent_len'] = tf.placeholder(tf.int32,[None,None])
+        t_variables['abstract_len'] = tf.placeholder(tf.int32,[None])
+
+        #Storing upper limit of each element length
         t_variables['max_sent_l'] = tf.placeholder(tf.int32)
         t_variables['max_doc_l'] = tf.placeholder(tf.int32)
-        t_variables['max_answers']=tf.placeholder(tf.int32)
-        t_variables['abstract_idxs'] = tf.placeholder(tf.int32, [None, None, None])
-        t_variables['max_abstract_l'] = 120
+        t_variables['max_answers'] = tf.placeholder(tf.int32)
+        t_variables['max_abstract_l'] = tf.placeholder(tf.int32)
+        t_variables['max_abstract_sent_l'] = tf.placeholder(tf.int32)
+
+        #Masks to limit element sizes
         t_variables['mask_tokens'] = tf.placeholder(tf.float32, [None, None, None,None])
         t_variables['mask_sents'] = tf.placeholder(tf.float32, [None, None,None])
         t_variables['mask_answers']= tf.placeholder(tf.float32,[None,None])
         t_variables['mask_parser_1'] = tf.placeholder(tf.float32, [None, None, None])
         t_variables['mask_parser_2'] = tf.placeholder(tf.float32, [None, None, None])
+        
         self.t_variables = t_variables
 
 
@@ -162,22 +175,23 @@ class StructureModel():
         
         #Maximum lengths of sentences, answers and documents to be processed
         max_sent_l = self.t_variables['max_sent_l']
-        max_doc_l = self.t_variables['max_doc_l']
-        max_answers = self.t_variables['max_answers']
+        max_ans_l = self.t_variables['max_doc_l']
+        max_doc_l = self.t_variables['max_answers']
 
         #batch size
         batch_l = self.t_variables['batch_l']
 
-        tokens_input = tf.nn.embedding_lookup(self.embeddings, self.t_variables['token_idxs'][:,:max_answers, :max_doc_l, :max_sent_l])
+        tokens_input = tf.nn.embedding_lookup(self.embeddings, self.t_variables['token_idxs'][:,:max_doc_l, :max_ans_l, :max_sent_l])
+        reference_input = tf.nn.embedding_lookup(self.embeddings,self.t_variables['abstract_idxs'][:,:max_abstract_l,:max_abstract_sent_l])
+        
         tokens_input = tf.nn.dropout(tokens_input, self.t_variables['keep_prob'])
 
-
-        mask_tokens = self.t_variables['mask_tokens'][:,:max_answers, :max_doc_l, :max_sent_l]
-        mask_sents = self.t_variables['mask_sents'][:, :max_answers,:max_doc_l]
-        mask_answers = self.t_variables['mask_answers'][:,:max_answers]
+        mask_tokens = self.t_variables['mask_tokens'][:,:max_doc_l, :max_ans_l, :max_sent_l]
+        mask_sents = self.t_variables['mask_sents'][:, :max_doc_l,:max_ans_l]
+        mask_answers = self.t_variables['mask_answers'][:,:max_doc_l]
 
         [_, _, _, _, rnn_size] = tokens_input.get_shape().as_list()
-        tokens_input_do = tf.reshape(tokens_input, [batch_l * max_answers,max_doc_l, max_sent_l, rnn_size])
+        tokens_input_do = tf.reshape(tokens_input, [batch_l * max_doc_l,max_ans_l, max_sent_l, rnn_size])
 
         sent_l = tf.reshape(sent_l, [batch_l * max_answers *max_doc_l])
         mask_tokens = tf.reshape(mask_tokens, [batch_l * max_doc_l, -1])
