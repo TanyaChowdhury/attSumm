@@ -4,12 +4,12 @@ import argparse
 import cPickle
 def main():
     corpus = Corpus()
-    corpus.load('Data/CQA/train.bin', 'train')
-    corpus.load('Data/CQA/val.bin', 'dev')
-    corpus.load('Data/CQA/test.bin', 'test')
+    corpus.load('Data/cqa.test', 'train')
+    corpus.load('Data/cqa.test', 'dev')
+    corpus.load('Data/cqa.test', 'test')
     corpus.preprocess()
     
-    options =  dict(max_sents=60, max_tokens=100, skip_gram=False, emb_size=200)
+    options =  dict(max_answers=15, max_sents=60, max_tokens=100, skip_gram=False, emb_size=200)
     print('Start training word embeddings')
     corpus.w2v(options)
 

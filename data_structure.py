@@ -1,4 +1,4 @@
-import gensim
+# import gensim
 import numpy as np
 import re
 import random
@@ -13,8 +13,8 @@ def strip_accents(s):
 class RawData:
     def __init__(self,name,count):
         self.idx = name+ '/'+str(count)
-        self.abstract = ''
-        self.answers = ''
+        self.abstract = []
+        self.answers = []
         self.prediction = ''
         
 class DataSet:
@@ -70,66 +70,94 @@ class Corpus:
         self.doclst = {}
 
     def load(self, in_path, name):
-        self.doclst[name] = []
-        cnt = 0
-        binFile = []
-        for line in open(in_path):
-            binFile.append(line)
+        self.doclst[name] = []        
+        binaryData = []
 
-        itr = 0
-        while(itr < len(binFile)):
-            print itr
-            doc = RawData(name,cnt)
-            while(itr<len(binFile) and len(binFile[itr])<15):
-                itr+=1
+        for item in open(in_path):
+            binaryData.append(item)
+        
+        i = 0
+        while(i< len(binaryData)):
+            doc = RawData(name,int(i/3))
 
-            if(itr >= len(binFile)):
-                break
+            #Check if everything all right
+            split1 = binaryData[i]
+            if ( i!=0 and '<split1>' not in split1):
+                print 'Some error in preprocess', i,"\n"
+                print split1
 
-            doc.abstract = binFile[itr]
-            itr+=1
+            #Create Answer List
+            answersString = binaryData[i+1]
+            answersString = answersString.replace('<0>','')
+            answersString = answersString.replace('\n','')
+            answersList = answersString.split('<split2>')
+            answersList = [item.split('<split3>') for item in answersList]
+            doc.answers = answersList
 
-            while(itr<len(binFile) and len(binFile[itr])<15):
-                itr+=1
+            #Create Abstract List
+            abstractString = binaryData[i+2]
+            abstractString = abstractString.replace('<1>','')
+            abstractString = abstractString.replace('\n','')
+            abstractList = abstractString.split('<reference_split>')
+            doc.abstract = abstractList
 
-            if(itr >= len(binFile)):
-                break
-
-            doc.answers = binFile[itr]
-            itr+=1
+            i+=3
 
             self.doclst[name].append(doc)
-            cnt+=1
-
 
     def preprocess(self):
         for dataset in self.doclst:
             for doc in self.doclst[dataset]:
-                doc.abstract_sent_list = doc.abstract.split('</s> <s>')
-                doc.abstract_sent_list = [re.sub(r"[^A-Za-z0-9(),!?\'\`_]", " ",sent) for sent in doc.abstract_sent_list]
 
-                doc.answers_sent_list = doc.answers.split('.')
-                doc.answers_sent_list = [re.sub(r"[^A-Za-z0-9(),!?\'\`_]", " ",sent) for sent in doc.answers_sent_list]
+                #Cleaning and tokenizing document 
+                doc.answers_sent_list = []
+                doc.document_tokens_list = []
+                for answers in doc.answers:
+                    preprocessed_sentences = []
+                    token_sentences = []
+                    for sentences in answers:
+                        s = re.sub(r"[^A-Za-z0-9(),!?\'\`_]", " ",sentences)
+                        preprocessed_sentences.append(s)
+                        sentence_tokens = s.split()
+                        if(len(sentence_tokens)>1):
+                            token_sentences.append(s.split())
+                    doc.answers_sent_list.append(preprocessed_sentences)
+                    doc.document_tokens_list.append(token_sentences)
 
-                doc.sent_token_lst = [sent.split() for sent in doc.answers_sent_list]
-                doc.sent_token_lst = [sent_tokens for sent_tokens in doc.sent_token_lst if(len(sent_tokens)!=0)]
-
-                doc.abstract_token_lst = [sent.split() for sent in doc.abstract_sent_list]
-                doc.abstract_token_lst = [sent_tokens for sent_tokens in doc.abstract_token_lst if(len(sent_tokens)!=0)]
+                #Cleaning and tokenizing abstract
+                doc.abstract_sent_list = []
+                doc.abstract_tokens_list = []
+                for sentences in doc.abstract:
+                    s = re.sub(r"[^A-Za-z0-9(),!?\'\`_]", " ",sentences)
+                    doc.abstract_sent_list.append(s)
+                    abstract_tokens = s.split()
+                    if(len(abstract_tokens)>1):
+                        doc.abstract_tokens_list.append(abstract_tokens)
             
-            self.doclst[dataset] = [doc for doc in self.doclst[dataset] if (len(doc.sent_token_lst)!=0 and len(doc.abstract_token_lst)!=0)]
+            #Only add threads with more than 0 answers and more than 0 words abstract
+            self.doclst[dataset] = [doc for doc in self.doclst[dataset] if (len(doc.document_tokens_list)!=0 and len(doc.abstract_tokens_list)!=0)]
+
+
 
 
     def w2v(self, options):
         sentences = []
         for doc in self.doclst['train']:
-            sentences.extend(doc.sent_token_lst)
-            sentences.extend(doc.abstract_token_lst)
+            for answers in doc.document_tokens_list:
+                for sents in answers:
+                    sentences.extend(sents)
+            
+            for sents in doc.abstract_tokens_list:     
+                sentences.extend(sents)
         
         if('dev' in self.doclst):
             for doc in self.doclst['dev']:
-                sentences.extend(doc.sent_token_lst)
-                sentences.extend(doc.abstract_token_lst)
+                for answers in doc.document_tokens_list:
+                    for sents in answers:
+                        sentences.extend(sents)
+            
+                for sents in doc.abstract_tokens_list:     
+                    sentences.extend(sents)
         
         if(options['skip_gram']):
             self.w2v_model = gensim.models.word2vec.Word2Vec(size=options['emb_size'], window=5, min_count=5, workers=4, sg=1)
@@ -146,30 +174,40 @@ class Corpus:
     
     def prepare(self, options):
         instances, instances_dev, instances_test = [],[],[]
-        instances, embeddings, vocab = self.prepare_for_training(options)
+        instances, embeddings, vocab = self.prepare(options,'train')
         
         if ('dev' in self.doclst):
-            instances_dev = self.prepare_for_test(options, 'dev')
+            instances_dev = self.prepare(options, 'dev')
         
-        instances_test = self.prepare_for_test( options, 'test')
+        instances_test = self.prepare( options, 'test')
         return instances, instances_dev, instances_test, embeddings, vocab
 
-    def prepare_for_training(self, options):
+    def prepare(self, options,mode):
         instancelst = []
-        embeddings = np.zeros([len(self.vocab)+1,options['emb_size']])
+
+        if(mode=='train'):        
+            #(50000,200) every word in vocab is assigned an embedding which is pre trained
+            embeddings = np.zeros([len(self.vocab)+1,options['emb_size']])
+            for word in self.vocab:
+                embeddings[self.vocab[word].index] = self.w2v_model[word]
+            
+            self.vocab['UNK'] = gensim.models.word2vec.Vocab(count=0, index=len(self.vocab))
         
-        for word in self.vocab:
-            embeddings[self.vocab[word].index] = self.w2v_model[word]
-        
-        self.vocab['UNK'] = gensim.models.word2vec.Vocab(count=0, index=len(self.vocab))
+
         n_filtered = 0
         
-        for i_doc, doc in enumerate(self.doclst['train']):
+        for i_doc, doc in enumerate(self.doclst[mode]):
             instance = Instance()
             instance.idx = i_doc
-            n_sents = len(doc.sent_token_lst)
-            max_n_tokens = max([len(sent) for sent in doc.sent_token_lst])
-            
+
+            n_answers = len(doc.document_tokens_list)
+            max_n_sents = max([len(answer) for answer in doc.document_tokens_list])
+            max_n_tokens = max([len(sent) for answer in doc.document_tokens_list for sent in answer])
+
+            if(n_answers > options['max_answers']):
+                n_filtered+=1
+                continue
+
             if(n_sents>options['max_sents']):
                 n_filtered += 1
                 continue
@@ -178,72 +216,39 @@ class Corpus:
                 n_filtered += 1
                 continue
 
-            sent_token_idx = []
-            for i in range(len(doc.sent_token_lst)):
-                token_idxs = []
-                for token in doc.sent_token_lst[i]:
+            #Generating document token indexes array and storing them in token_idxs of instance
+            document_token_indexes = []
+            for answer in doc.document_tokens_list:
+                sentence_indexes = []
+                for sentence in answer:
+                    token_indexes = []
+                    for token in sentence:
+                        if(token in self.vocab):
+                            token_indexes.append(self.vocab[token].index)
+                        else:
+                            token_indexes.append(self.vocab['UNK'].index)
+                    sentence_indexes.append(token_indexes)
+                document_token_indexes.append(sentence_indexes)
+            instance.token_idxs = document_token_indexes
+
+
+            #Generating abstract token indexes array and storing them in abstract_idxs of instance
+            abstract_token_indexes = []
+            for sentences in doc.abstract_tokens_list:
+                token_indexes = []
+                for token in sentences:
                     if(token in self.vocab):
-                        token_idxs.append(self.vocab[token].index)
+                        token_indexes.append(self.vocab[token].index)
                     else:
-                        token_idxs.append(self.vocab['UNK'].index)
-                sent_token_idx.append(token_idxs)
-            instance.token_idxs = sent_token_idx
-            
-            abstract_token_idx = []
-            for i in range(len(doc.abstract_token_lst)):
-                token_idxs = []
-                for token in doc.abstract_token_lst[i]:
-                    if(token in self.vocab):
-                        token_idxs.append(self.vocab[token].index)
-                    else:
-                        token_idxs.append(self.vocab['UNK'].index)
-                abstract_token_idx.append(token_idxs)
-            instance.abstract_idxs = abstract_token_idx
+                        token_indexes.append(self.vocab['UNK'].index)
+                abstract_token_indexes.append(token_indexes)
+            instance.abstract_idxs = abstract_token_indexes
 
             instancelst.append(instance)
+
         print('n_filtered in train: {}'.format(n_filtered))
-        return instancelst, embeddings, self.vocab
-
-    def prepare_for_test(self, options, name):
-        instancelst = []
-        n_filtered = 0
-        for i_doc, doc in enumerate(self.doclst[name]):
-            instance = Instance()
-            instance.idx = i_doc
-            
-            n_sents = len(doc.sent_token_lst)
-            max_n_tokens = max([len(sent) for sent in doc.sent_token_lst])
-            
-            if(n_sents>options['max_sents']):
-                n_filtered += 1
-                continue
-            
-            if(max_n_tokens>options['max_tokens']):
-                n_filtered += 1
-                continue
-            
-            sent_token_idx = []
-            for i in range(len(doc.sent_token_lst)):
-                token_idxs = []
-                for token in doc.sent_token_lst[i]:
-                    if(token in self.vocab):
-                        token_idxs.append(self.vocab[token].index)
-                    else:
-                        token_idxs.append(self.vocab['UNK'].index)
-                sent_token_idx.append(token_idxs)
-            instance.token_idxs = sent_token_idx
-
-            abstract_token_idx = []
-            for i in range(len(doc.abstract_token_lst)):
-                token_idxs = []
-                for token in doc.abstract_token_lst[i]:
-                    if(token in self.vocab):
-                        token_idxs.append(self.vocab[token].index)
-                    else:
-                        token_idxs.append(self.vocab['UNK'].index)
-                abstract_token_idx.append(token_idxs)
-            instance.abstract_idxs = abstract_token_idx
-            instancelst.append(instance)
-            
-        print('n_filtered in {}: {}'.format(name, n_filtered))
-        return instancelst
+        
+        if mode == 'train':
+            return instancelst, embeddings, self.vocab
+        else:
+            return instancelst
