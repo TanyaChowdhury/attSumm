@@ -199,7 +199,7 @@ class StructureModel():
 
 
         [_, _, _, _, rnn_size] = tokens_input.get_shape().as_list()
-        tokens_input_do = tf.reshape(tokens_input, [batch_l * max_doc_l,max_ans_l, max_sent_l, rnn_size])
+        tokens_input_do = tf.reshape(tokens_input, [batch_l * max_doc_l*max_ans_l, max_sent_l, rnn_size])
 
         sent_l = tf.reshape(sent_l, [batch_l * max_doc_l* max_ans_l])
         mask_tokens = tf.reshape(mask_tokens, [batch_l * max_doc_l*max_ans_l, -1])
