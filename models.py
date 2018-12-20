@@ -19,8 +19,8 @@ class StructureModel():
         t_variables['sent_l'] = tf.placeholder(tf.int32, [None, None,None])
         t_variables['ans_l'] = tf.placeholder(tf.int32, [None, None])
         t_variables['doc_l'] = tf.placeholder(tf.int32, [None])
-        t_variables['abstract_sent_len'] = tf.placeholder(tf.int32,[None,None])
-        t_variables['abstract_len'] = tf.placeholder(tf.int32,[None])
+        t_variables['abstract_sent_l'] = tf.placeholder(tf.int32,[None,None])
+        t_variables['abstract_l'] = tf.placeholder(tf.int32,[None])
 
         #Storing upper limit of each element length
         t_variables['max_sent_l'] = tf.placeholder(tf.int32)
@@ -287,7 +287,7 @@ class StructureModel():
             ans_output = tf.reduce_max(ans_output, 1)
 
         targets = self.t_variables['abstract_idxs']
-        targets = tf.reshape(targets, [batch_l*, ])
+        # targets = tf.reshape(targets, [batch_l*, ])
         train_output, infer_output = decoding_layer(targets, ans_output, self.config)
         
         if mode == 'train' :

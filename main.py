@@ -47,8 +47,10 @@ def run(config):
     config.n_embed, config.d_embed = embedding_matrix.shape
     config.vocab = vocab
     config.vsize = len(vocab)
+    config.inv_vocab = {v: k for k, v in vocab.iteritems()}
     config.dim_hidden = config.dim_sem+config.dim_str
 
+    print config.inv_vocab
     # print(config.__flags)
     logger.critical(str(config.__flags))
 
