@@ -1,5 +1,5 @@
 import tensorflow as tf
-from neural import dynamicBiRNN, decoding_layer, get_structure,LReLu,process_decoder_input
+from neural import dynamicBiRNN, get_structure,LReLu
 import numpy as np
 
 
