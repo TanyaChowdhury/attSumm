@@ -158,9 +158,7 @@ class Corpus:
             
                 for sents in doc.abstract_tokens_list:     
                     sentences.append(sents)
-        
-        print sentences
-        
+                
         if(options['skip_gram']):
             self.w2v_model = gensim.models.word2vec.Word2Vec(size=options['emb_size'], window=5, min_count=5, workers=4, sg=1)
         else:
