@@ -170,10 +170,12 @@ class StructureModel():
             tf.get_variable("w_parser_root", [2 * self.config.dim_str, 1], dtype=tf.float32,
                             initializer=tf.contrib.layers.xavier_initializer())
 
-
+        #Variables of dimension batchsize passing length of each vector to architectures
         sent_l = self.t_variables['sent_l']
         ans_l = self.t_variables['ans_l']
         doc_l = self.t_variables['doc_l']
+        abstract_l = self.t_variables['abstract_l']
+        abstract_sent_l = self.t_variables['abstract_sent_l']
         
         #Maximum lengths of sentences, answers and documents to be processed
         max_sent_l = self.t_variables['max_sent_l']
@@ -285,7 +287,8 @@ class StructureModel():
             ans_output = tf.reduce_max(ans_output, 1)
 
         targets = self.t_variables['abstract_idxs']
-        train_output, infer_output = decoding_layer(decoder_input, ans_output, self.config)
+        targets = tf.reshape(targets, [batch_l*, ])
+        train_output, infer_output = decoding_layer(targets, ans_output, self.config)
         
         if mode == 'train' :
             decoder_output = train_output

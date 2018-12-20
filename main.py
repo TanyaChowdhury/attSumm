@@ -44,7 +44,6 @@ def run(config):
     logger.addHandler(ah)
 
     num_examples, train_batches, dev_batches, test_batches, embedding_matrix, vocab = load_data(config)
-    print("n_embed, d_embed: ",embedding_matrix.shape)
     config.n_embed, config.d_embed = embedding_matrix.shape
     config.vocab = vocab
     config.vsize = len(vocab)

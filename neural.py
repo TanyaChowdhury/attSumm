@@ -89,7 +89,6 @@ def decoding_layer(dec_input, encoder_state,config):
                                             max_target_sequence_length,target_vocab_size,output_layer,batch_size,keep_prob)
 
     return (train_output, infer_output)
-
 #Decoder architecture finishes here
 
 def get_structure(name, input, max_l, mask_parser_1, mask_parser_2):
