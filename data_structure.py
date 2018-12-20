@@ -145,19 +145,19 @@ class Corpus:
         for doc in self.doclst['train']:
             for answers in doc.document_tokens_list:
                 for sents in answers:
-                    sentences.extend(sents)
+                    sentences.append(sents)
             
             for sents in doc.abstract_tokens_list:     
-                sentences.extend(sents)
+                sentences.append(sents)
         
         if('dev' in self.doclst):
             for doc in self.doclst['dev']:
                 for answers in doc.document_tokens_list:
                     for sents in answers:
-                        sentences.extend(sents)
+                        sentences.append(sents)
             
                 for sents in doc.abstract_tokens_list:     
-                    sentences.extend(sents)
+                    sentences.append(sents)
         
         print sentences
         
