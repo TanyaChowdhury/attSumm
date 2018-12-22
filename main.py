@@ -50,7 +50,6 @@ def run(config):
     config.inv_vocab = {v: k for k, v in vocab.iteritems()}
     config.dim_hidden = config.dim_sem+config.dim_str
 
-    print config.inv_vocab
     # print(config.__flags)
     logger.critical(str(config.__flags))
 

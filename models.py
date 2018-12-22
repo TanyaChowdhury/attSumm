@@ -289,8 +289,8 @@ class StructureModel():
         targets = self.t_variables['abstract_idxs']
         # targets = tf.reshape(targets, [batch_l*, ])
 
-        train_helper = tf.contrib.seq2seq.TrainingHelper(output_embed, output_lengths)
-        pred_helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(embeddings, start_tokens=tf.to_int32(start_tokens), end_token=1)
+        train_helper = tf.contrib.seq2seq.TrainingHelper(targets, 100)
+        pred_helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(ans_output, start_tokens=tf.to_int32(start_tokens), end_token=1)
 
         train_outputs = decode(train_helper, 'decode')
         pred_outputs = decode(pred_helper, 'decode', reuse=True)
