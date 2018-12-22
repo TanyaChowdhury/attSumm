@@ -14,6 +14,7 @@ class StructureModel():
         #Placeholder for answers and abstracts
         t_variables['token_idxs'] = tf.placeholder(tf.int32, [None, None, None, None])
         t_variables['abstract_idxs'] = tf.placeholder(tf.int32, [None,None,None])
+        t_variables['generated_idxs'] = tf.placeholder(tf.int32,[None,None])
 
         #Storing length of each heirarchy element
         t_variables['sent_l'] = tf.placeholder(tf.int32, [None, None,None])
@@ -35,6 +36,9 @@ class StructureModel():
         t_variables['mask_answers']= tf.placeholder(tf.float32,[None,None])
         t_variables['mask_parser_1'] = tf.placeholder(tf.float32, [None, None, None])
         t_variables['mask_parser_2'] = tf.placeholder(tf.float32, [None, None, None])
+
+        t_variables['start_tokens'] = tf.placeholder(tf.int32,[None])
+
         
         self.t_variables = t_variables
 
@@ -286,11 +290,14 @@ class StructureModel():
             ans_output = ans_output + tf.expand_dims((mask_answers-1)*999,2)
             ans_output = tf.reduce_max(ans_output, 1)
 
-        targets = self.t_variables['abstract_idxs']
+        abstract_idxs = self.t_variables['abstract_idxs']
+        abstract_l = self.t_variables['abstract_l']
+        generated_idxs = self.t_variables['generated_idxs']
+        start_tokens = self.t_variables['start_tokens']
         # targets = tf.reshape(targets, [batch_l*, ])
 
-        train_helper = tf.contrib.seq2seq.TrainingHelper(targets, 100)
-        pred_helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(ans_output, start_tokens=tf.to_int32(start_tokens), end_token=1)
+        train_helper = tf.contrib.seq2seq.TrainingHelper(abstract_idxs, abstract_l)
+        pred_helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(generated_idxs, start_tokens=tf.to_int32(start_tokens), end_token=1)
 
         train_outputs = decode(train_helper, 'decode')
         pred_outputs = decode(pred_helper, 'decode', reuse=True)
