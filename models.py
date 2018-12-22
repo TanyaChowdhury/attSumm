@@ -1,5 +1,5 @@
 import tensorflow as tf
-from neural import dynamicBiRNN, get_structure,LReLu
+from neural import dynamicBiRNN, get_structure,LReLu,decode
 import numpy as np
 
 
@@ -288,39 +288,28 @@ class StructureModel():
 
         targets = self.t_variables['abstract_idxs']
         # targets = tf.reshape(targets, [batch_l*, ])
-        train_output, infer_output = decoding_layer(targets, ans_output, self.config)
-        
-        if mode == 'train' :
-            decoder_output = train_output
-        else:
-            decoder_output = infer_output
 
-        with tf.variable_scope('output_projection'):
-            w = tf.get_variable('w', [self.config.dim_hidden, self.config.vsize], dtype=tf.float32, initializer=tf.truncated_normal_initializer())
-            w_t = tf.transpose(w)
-            v = tf.get_variable('v', [self.config.vsize], dtype=tf.float32, initializer=tf.truncated_normal_initializer())
-            vocab_scores = [] # vocab_scores is the vocabulary distribution before applying softmax. Each entry on the list corresponds to one decoder step
-            for i,output in enumerate(decoder_output):
-                if i > 0:
-                    tf.get_variable_scope().reuse_variables()
-            vocab_scores.append(tf.nn.xw_plus_b(output, w, v)) # apply the linear layer
+        train_helper = tf.contrib.seq2seq.TrainingHelper(output_embed, output_lengths)
+        pred_helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(embeddings, start_tokens=tf.to_int32(start_tokens), end_token=1)
 
-        vocab_dists = [tf.nn.softmax(s) for s in vocab_scores] # The vocabulary distributions. List length max_dec_steps of (batch_size, vsize) arrays. The words are in the order they appear in the vocabulary file.
-        self._loss = tf.contrib.seq2seq.sequence_loss(tf.stack(vocab_scores, axis=1), self._target_batch, self._dec_padding_mask) # this applies softmax internally
+        train_outputs = decode(train_helper, 'decode')
+        pred_outputs = decode(pred_helper, 'decode', reuse=True)
 
-        tvars = tf.trainable_variables()
-        gradients = tf.gradients(loss_to_minimize, tvars, aggregation_method=tf.AggregationMethod.EXPERIMENTAL_TREE)
+        tf.identity(train_outputs.sample_id[0], name='train_pred')
+        weights = tf.to_float(tf.not_equal(train_output[:, :-1], 1))
+        loss = tf.contrib.seq2seq.sequence_loss(
+            train_outputs.rnn_output, output, weights=weights)
+        train_op = layers.optimize_loss(
+            loss, tf.train.get_global_step(),
+            optimizer=params.get('optimizer', 'Adam'),
+            learning_rate=params.get('learning_rate', 0.001),
+            summaries=['loss', 'learning_rate'])
 
-        # Clip the gradients
-        with tf.device("/gpu:0"):
-            grads, global_norm = tf.clip_by_global_norm(gradients, self._hps.max_grad_norm)
-
-        # Add a summary
-        tf.summary.scalar('global_n2orm', global_norm)
-
-        # Apply adagrad optimizer
-        optimizer = tf.train.AdagradOptimizer(self.config.lr, initial_accumulator_value=self._hps.adagrad_init_acc)
-        with tf.device("/gpu:0"):
-            self._train_op = optimizer.apply_gradients(zip(grads, tvars), global_step=self.global_step, name='train_step')
-
+        tf.identity(pred_outputs.sample_id[0], name='predictions')
+        return tf.estimator.EstimatorSpec(
+            mode=mode,
+            predictions=pred_outputs.sample_id,
+            loss=loss,
+            train_op=train_op
+        )
 

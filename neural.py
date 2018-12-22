@@ -31,7 +31,15 @@ def dynamicBiRNN(input, seqlen, n_hidden, cell_type, cell_name=''):
 
 
 
-
+def decode(helper, scope, reuse=None):
+    with tf.variable_scope(scope, reuse=reuse):
+        attention_mechanism = tf.contrib.seq2seq.BahdanauAttention(num_units=num_units, memory=encoder_outputs,memory_sequence_length=input_lengths)
+        cell = tf.contrib.rnn.GRUCell(num_units=num_units)
+        attn_cell = tf.contrib.seq2seq.AttentionWrapper(cell, attention_mechanism, attention_layer_size=num_units / 2)
+        out_cell = tf.contrib.rnn.OutputProjectionWrapper(attn_cell, vocab_size, reuse=reuse)
+        decoder = tf.contrib.seq2seq.BasicDecoder(cell=out_cell, helper=helper,initial_state=out_cell.zero_state(dtype=tf.float32, batch_size=batch_size))#initial_state=encoder_final_state)
+        outputs = tf.contrib.seq2seq.dynamic_decode(decoder=decoder, output_time_major=False,impute_finished=True, maximum_iterations=output_max_length)
+        return outputs[0]
 
 def get_structure(name, input, max_l, mask_parser_1, mask_parser_2):
     def _getDep(input, mask1, mask2):
