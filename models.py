@@ -269,7 +269,7 @@ class StructureModel():
 
         #Answer level RNN
         ans_input = tf.reshape(sents_output, [batch_l, max_doc_l,2*self.config.dim_sem])
-        ans_output, _ = dynamicBiRNN(ans_input, doc_l, n_hidden=self.config.dim_hidden, cell_type=self.config.rnn_cell, cell_name='Model/ans')
+        ans_output, answer_state = dynamicBiRNN(ans_input, doc_l, n_hidden=self.config.dim_hidden, cell_type=self.config.rnn_cell, cell_name='Model/ans')
 
         ans_sem = tf.concat([ans_output[0][:,:,:self.config.dim_sem], ans_output[1][:,:,:self.config.dim_sem]], 2)
         ans_str = tf.concat([ans_output[0][:,:,self.config.dim_sem:], ans_output[1][:,:,self.config.dim_sem:]], 2)
@@ -290,33 +290,22 @@ class StructureModel():
             ans_output = ans_output + tf.expand_dims((mask_answers-1)*999,2)
             ans_output = tf.reduce_max(ans_output, 1)
 
-        abstract_idxs = self.t_variables['abstract_idxs']
-        abstract_l = self.t_variables['abstract_l']
-        generated_idxs = self.t_variables['generated_idxs']
-        start_tokens = self.t_variables['start_tokens']
-        # targets = tf.reshape(targets, [batch_l*, ])
+        reference_input = tf.reshape(reference_input,[batch_l,max_abstract_l*max_abstract_sent_l])
+        
+        decoder_cell = tf.nn.rnn_cell.BasicLSTMCell(self.config.dim_hidden)
+        helper = tf.contrib.seq2seq.TrainingHelper(reference_input, abstract_l, time_major=True)
+        decoder = tf.contrib.seq2seq.BasicDecoder(decoder_cell, helper, answer_state,output_layer=projection_layer)
+        outputs, _ = tf.contrib.seq2seq.dynamic_decode(decoder, ...)
+        logits = outputs.rnn_output
 
-        train_helper = tf.contrib.seq2seq.TrainingHelper(abstract_idxs, abstract_l)
-        pred_helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(generated_idxs, start_tokens=tf.to_int32(start_tokens), end_token=1)
+        crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=decoder_outputs, logits=logits)
+        train_loss = (tf.reduce_sum(crossent * target_weights) /batch_l)
 
-        train_outputs = decode(train_helper, 'decode')
-        pred_outputs = decode(pred_helper, 'decode', reuse=True)
+        params = tf.trainable_variables()
+        gradients = tf.gradients(train_loss, params)
+        clipped_gradients, _ = tf.clip_by_global_norm(gradients, max_gradient_norm)
 
-        tf.identity(train_outputs.sample_id[0], name='train_pred')
-        weights = tf.to_float(tf.not_equal(train_output[:, :-1], 1))
-        loss = tf.contrib.seq2seq.sequence_loss(
-            train_outputs.rnn_output, output, weights=weights)
-        train_op = layers.optimize_loss(
-            loss, tf.train.get_global_step(),
-            optimizer=params.get('optimizer', 'Adam'),
-            learning_rate=params.get('learning_rate', 0.001),
-            summaries=['loss', 'learning_rate'])
+        optimizer = tf.train.AdamOptimizer(learning_rate)
+        update_step = optimizer.apply_gradients(zip(clipped_gradients, params))
 
-        tf.identity(pred_outputs.sample_id[0], name='predictions')
-        return tf.estimator.EstimatorSpec(
-            mode=mode,
-            predictions=pred_outputs.sample_id,
-            loss=loss,
-            train_op=train_op
-        )
 
