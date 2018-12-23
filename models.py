@@ -295,7 +295,7 @@ class StructureModel():
         decoder_cell = tf.nn.rnn_cell.BasicLSTMCell(self.config.dim_hidden)
         helper = tf.contrib.seq2seq.TrainingHelper(reference_input, abstract_l, time_major=True)
         decoder = tf.contrib.seq2seq.BasicDecoder(decoder_cell, helper, answer_state,output_layer=projection_layer)
-        outputs, _ = tf.contrib.seq2seq.dynamic_decode(decoder, ...)
+        outputs, _ = tf.contrib.seq2seq.dynamic_decode(decoder)
         logits = outputs.rnn_output
 
         crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=decoder_outputs, logits=logits)
