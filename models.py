@@ -294,16 +294,17 @@ class StructureModel():
 
 
         tgt_vocab_size = self.config.vsize
-
+        learning_rate = self.config.lr
+        
         decoder_cell = tf.nn.rnn_cell.BasicLSTMCell(self.config.dim_hidden)
-        helper = tf.contrib.seq2seq.TrainingHelper(reference_input, abstract_l, time_major=True)
+        helper = tf.contrib.seq2seq.TrainingHelper(ans_output, abstract_l, time_major=True)
         projection_layer = tf.layers.Dense(tgt_vocab_size, use_bias=False)
         
         decoder = tf.contrib.seq2seq.BasicDecoder(decoder_cell, helper,tf.contrib.rnn.LSTMStateTuple(tf.random_normal([batch_l,self.config.dim_hidden]),tf.random_normal([batch_l,self.config.dim_hidden])),output_layer=projection_layer)
         outputs, states,seq_l = tf.contrib.seq2seq.dynamic_decode(decoder)
         logits = outputs.rnn_output
 
-        crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=decoder_outputs, logits=logits)
+        crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=refernce_inputs, logits=logits)
         train_loss = (tf.reduce_sum(crossent * target_weights) /batch_l)
 
         params = tf.trainable_variables()
