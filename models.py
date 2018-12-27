@@ -55,11 +55,12 @@ class StructureModel():
         max_doc_l = np.max(doc_l_matrix)
         max_abstract_l = np.max(abstracts_l_matrix)
         max_ans_l = max([max([len(ans) for ans in doc.token_idxs]) for doc in batch])
-        max_sent_l = max([max([max([len(sent) for sent in ans]) for ans in doc.token_idxs]) for doc in batch])
+        max_sent_l = max([max([max([len(sent) for itr in doc.token_idxs for sent in itr]) for ans in doc.token_idxs]) for doc in batch])
 
         token_idxs_matrix = np.zeros([batch_size, max_doc_l, max_ans_l, max_sent_l], np.int32)
         abstract_idx_matrix = np.zeros([batch_size,max_abstract_l], np.int32)
 
+        ans_l_matrix = np.zeros([batch_size, max
         sent_l_matrix = np.zeros([batch_size, max_doc_l], np.int32)
 
         mask_tokens_matrix = np.ones([batch_size, max_doc_l, max_sent_l], np.float32)
