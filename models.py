@@ -3,8 +3,6 @@ from neural import dynamicBiRNN, get_structure,LReLu,decode
 import numpy as np
 from tensorflow.python.layers.core import Dense
 
-
-
 class StructureModel():
     def __init__(self, config):
         self.config = config
@@ -301,7 +299,7 @@ class StructureModel():
         helper = tf.contrib.seq2seq.TrainingHelper(reference_input, abstract_l, time_major=True)
         projection_layer = tf.layers.Dense(tgt_vocab_size, use_bias=False)
         
-        decoder = tf.contrib.seq2seq.BasicDecoder(decoder_cell, helper, tf.random.normal([batch_l,self.config.dim_hidden]),output_layer=projection_layer)
+        decoder = tf.contrib.seq2seq.BasicDecoder(decoder_cell, helper, tf.random_normal([self.config.dim_hidden]),output_layer=projection_layer)
         outputs, _ = tf.contrib.seq2seq.dynamic_decode(decoder)
         logits = outputs.rnn_output
 
