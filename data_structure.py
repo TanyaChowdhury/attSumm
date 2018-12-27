@@ -99,7 +99,9 @@ class Corpus:
             abstractString = abstractString.replace('<1>','')
             abstractString = abstractString.replace('\n','')
             abstractList = abstractString.split('<reference_split>')
+            abstractString = ' '.join(abstractList)
             doc.abstract = abstractList
+            doc.abstractString = abstractString
 
             i+=3
 
@@ -125,15 +127,10 @@ class Corpus:
                     doc.document_tokens_list.append(token_sentences)
 
                 #Cleaning and tokenizing abstract
-                doc.abstract_sent_list = []
-                doc.abstract_tokens_list = []
-                for sentences in doc.abstract:
-                    s = re.sub(r"[^A-Za-z0-9(),!?\'\`_]", " ",sentences)
-                    doc.abstract_sent_list.append(s)
-                    abstract_tokens = s.split()
-                    if(len(abstract_tokens)>1):
-                        doc.abstract_tokens_list.append(abstract_tokens)
-            
+                s = re.sub(r"[^A-Za-z0-9(),!?\'\`_]", " ",doc.abstractString)
+                abstract_tokens = s.split()
+                doc.abstract_tokens_list = abstract_tokens
+                            
             #Only add threads with more than 0 answers and more than 0 words abstract
             self.doclst[dataset] = [doc for doc in self.doclst[dataset] if (len(doc.document_tokens_list)!=0 and len(doc.abstract_tokens_list)!=0)]
 
@@ -146,9 +143,7 @@ class Corpus:
             for answers in doc.document_tokens_list:
                 for sents in answers:
                     sentences.append(sents)
-            
-            for sents in doc.abstract_tokens_list:     
-                sentences.append(sents)
+            sentences.append(doc.abstract_tokens_list)
         
         if('dev' in self.doclst):
             for doc in self.doclst['dev']:
@@ -156,8 +151,7 @@ class Corpus:
                     for sents in answers:
                         sentences.append(sents)
             
-                for sents in doc.abstract_tokens_list:     
-                    sentences.append(sents)
+                sentences.append(doc.abstract_tokens_list)
                 
         if(options['skip_gram']):
             self.w2v_model = gensim.models.word2vec.Word2Vec(size=options['emb_size'], window=5, min_count=5, workers=4, sg=1)
@@ -234,16 +228,12 @@ class Corpus:
 
             #Generating abstract token indexes array and storing them in abstract_idxs of instance
             abstract_token_indexes = []
-            for sentences in doc.abstract_tokens_list:
-                token_indexes = []
-                for token in sentences:
-                    if(token in self.vocab):
-                        token_indexes.append(self.vocab[token].index)
-                    else:
-                        token_indexes.append(self.vocab['UNK'].index)
-                abstract_token_indexes.append(token_indexes)
+            for word in doc.abstract_tokens_list:
+                if(word in self.vocab):
+                    abstract_token_indexes.append(self.vocab[word].index)
+                else:
+                    abstract_token_indexes.append(self.vocab['UNK'].index)
             instance.abstract_idxs = abstract_token_indexes
-
             instancelst.append(instance)
 
         print('n_filtered in train: {}'.format(n_filtered))
