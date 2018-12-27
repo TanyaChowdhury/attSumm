@@ -24,7 +24,7 @@ class StructureModel():
         #Storing upper limit of each element length
         t_variables['max_sent_l'] = tf.placeholder(tf.int32)
         t_variables['max_doc_l'] = tf.placeholder(tf.int32)
-        t_variables['max_answers'] = tf.placeholder(tf.int32)
+        t_variables['max_ans_l'] = tf.placeholder(tf.int32)
         t_variables['max_abstract_l'] = tf.placeholder(tf.int32)
 
         #Masks to limit element sizes
@@ -45,16 +45,18 @@ class StructureModel():
         doc_l_matrix = np.zeros([batch_size], np.int32)
         ans_l_matrix = np.zeros([batch_size], np.int32)
         abstracts_l_matrix = np.zeros([batch_size],np.int32)
+        
         for i, instance in enumerate(batch):
-            n_sents = len(instance.token_idxs)
+            n_ans = len(instance.token_idxs)
             n_words = len(instance.abstract_idxs)
-            doc_l_matrix[i] = n_sents
+            doc_l_matrix[i] = n_ans
             abstracts_l_matrix[i] = n_words
         
         max_doc_l = np.max(doc_l_matrix)
         max_abstract_l = np.max(abstracts_l_matrix)
-        max_sent_l = max([max([len(sent) for sent in doc.token_idxs]) for doc in batch])
-        
+        max_ans_l = max([max([len(ans) for ans in doc.token_idxs]) for doc in batch])
+        max_sent_l = max([max([max([len(sent) for sent in ans]) for ans in doc.token_idxs]) for doc in batch])
+
         token_idxs_matrix = np.zeros([batch_size, max_doc_l, max_ans_l, max_sent_l], np.int32)
         abstract_idx_matrix = np.zeros([batch_size,max_abstract_l], np.int32)
 
@@ -185,8 +187,8 @@ class StructureModel():
         
         #Maximum lengths of sentences, answers and documents to be processed
         max_sent_l = self.t_variables['max_sent_l']
-        max_ans_l = self.t_variables['max_doc_l']
-        max_doc_l = self.t_variables['max_answers']
+        max_ans_l = self.t_variables['max_ans_l']
+        max_doc_l = self.t_variables['max_doc_l']
         max_abstract_l = self.t_variables['max_abstract_l']
 
         #batch size
