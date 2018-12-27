@@ -1,6 +1,7 @@
 import tensorflow as tf
 from neural import dynamicBiRNN, get_structure,LReLu,decode
 import numpy as np
+from tensorflow.python.layers.core import Dense
 
 
 
@@ -13,14 +14,13 @@ class StructureModel():
         
         #Placeholder for answers and abstracts
         t_variables['token_idxs'] = tf.placeholder(tf.int32, [None, None, None, None])
-        t_variables['abstract_idxs'] = tf.placeholder(tf.int32, [None,None,None])
+        t_variables['abstract_idxs'] = tf.placeholder(tf.int32, [None,None])
         t_variables['generated_idxs'] = tf.placeholder(tf.int32,[None,None])
 
         #Storing length of each heirarchy element
         t_variables['sent_l'] = tf.placeholder(tf.int32, [None, None,None])
         t_variables['ans_l'] = tf.placeholder(tf.int32, [None, None])
         t_variables['doc_l'] = tf.placeholder(tf.int32, [None])
-        t_variables['abstract_sent_l'] = tf.placeholder(tf.int32,[None,None])
         t_variables['abstract_l'] = tf.placeholder(tf.int32,[None])
 
         #Storing upper limit of each element length
@@ -28,7 +28,6 @@ class StructureModel():
         t_variables['max_doc_l'] = tf.placeholder(tf.int32)
         t_variables['max_answers'] = tf.placeholder(tf.int32)
         t_variables['max_abstract_l'] = tf.placeholder(tf.int32)
-        t_variables['max_abstract_sent_l'] = tf.placeholder(tf.int32)
 
         #Masks to limit element sizes
         t_variables['mask_tokens'] = tf.placeholder(tf.float32, [None, None, None,None])
@@ -179,21 +178,19 @@ class StructureModel():
         ans_l = self.t_variables['ans_l']
         doc_l = self.t_variables['doc_l']
         abstract_l = self.t_variables['abstract_l']
-        abstract_sent_l = self.t_variables['abstract_sent_l']
         
         #Maximum lengths of sentences, answers and documents to be processed
         max_sent_l = self.t_variables['max_sent_l']
         max_ans_l = self.t_variables['max_doc_l']
         max_doc_l = self.t_variables['max_answers']
         max_abstract_l = self.t_variables['max_abstract_l']
-        max_abstract_sent_l = self.t_variables['max_abstract_sent_l']
 
         #batch size
         batch_l = self.t_variables['batch_l']
 
         #Creating embedding matrices for answers and abstracts corresponding to indexes
         tokens_input = tf.nn.embedding_lookup(self.embeddings, self.t_variables['token_idxs'][:,:max_doc_l, :max_ans_l, :max_sent_l])
-        reference_input = tf.nn.embedding_lookup(self.embeddings,self.t_variables['abstract_idxs'][:,:max_abstract_l,:max_abstract_sent_l])
+        reference_input = tf.nn.embedding_lookup(self.embeddings,self.t_variables['abstract_idxs'][:,:max_abstract_l])
         
         #Dropout on input
         tokens_input = tf.nn.dropout(tokens_input, self.t_variables['keep_prob'])
@@ -269,7 +266,7 @@ class StructureModel():
 
         #Answer level RNN
         ans_input = tf.reshape(sents_output, [batch_l, max_doc_l,2*self.config.dim_sem])
-        ans_output, answer_state = dynamicBiRNN(ans_input, doc_l, n_hidden=self.config.dim_hidden, cell_type=self.config.rnn_cell, cell_name='Model/ans')
+        ans_output, answer_states = dynamicBiRNN(ans_input, doc_l, n_hidden=self.config.dim_hidden, cell_type=self.config.rnn_cell, cell_name='Model/ans')
 
         ans_sem = tf.concat([ans_output[0][:,:,:self.config.dim_sem], ans_output[1][:,:,:self.config.dim_sem]], 2)
         ans_str = tf.concat([ans_output[0][:,:,self.config.dim_sem:], ans_output[1][:,:,self.config.dim_sem:]], 2)
@@ -290,14 +287,15 @@ class StructureModel():
             ans_output = ans_output + tf.expand_dims((mask_answers-1)*999,2)
             ans_output = tf.reduce_max(ans_output, 1)
 
-        reference_input = tf.reshape(reference_input,[batch_l,max_abstract_l*max_abstract_sent_l])
+
+
         tgt_vocab_size = self.config.vsize
 
         decoder_cell = tf.nn.rnn_cell.BasicLSTMCell(self.config.dim_hidden)
         helper = tf.contrib.seq2seq.TrainingHelper(reference_input, abstract_l, time_major=True)
         projection_layer = tf.layers.Dense(tgt_vocab_size, use_bias=False)
         
-        decoder = tf.contrib.seq2seq.BasicDecoder(decoder_cell, helper, answer_state,output_layer=projection_layer)
+        decoder = tf.contrib.seq2seq.BasicDecoder(decoder_cell, helper, tf.random.normal([batch_l,self.config.dim_hidden]),output_layer=projection_layer)
         outputs, _ = tf.contrib.seq2seq.dynamic_decode(decoder)
         logits = outputs.rnn_output
 
