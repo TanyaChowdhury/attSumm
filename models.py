@@ -305,12 +305,16 @@ class StructureModel():
         outputs, states,seq_l = tf.contrib.seq2seq.dynamic_decode(decoder)
         logits = outputs.rnn_output
 
-        crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=refernce_inputs, logits=logits)
-        train_loss = (tf.reduce_sum(crossent * target_weights) /batch_l)
+        crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.t_variables['abstract_idxs'][:,:max_abstract_l], logits=logits)
+
+        target_weights = tf.sequence_mask(abstract_l,dtype=tf.float32)
+        product = crossent*target_weights
+        loss_numerator =  tf.reduce_sum(product)
+        train_loss = (loss_numerator /tf.to_float(batch_l) )
 
         params = tf.trainable_variables()
         gradients = tf.gradients(train_loss, params)
-        clipped_gradients, _ = tf.clip_by_global_norm(gradients, max_gradient_norm)
+        clipped_gradients, _ = tf.clip_by_global_norm(gradients, 5.0)
 
         optimizer = tf.train.AdamOptimizer(learning_rate)
         update_step = optimizer.apply_gradients(zip(clipped_gradients, params))
