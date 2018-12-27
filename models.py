@@ -45,17 +45,22 @@ class StructureModel():
     def get_feed_dict(self, batch):
         batch_size = len(batch)
         doc_l_matrix = np.zeros([batch_size], np.int32)
+        ans_l_matrix = np.zeros([batch_size], np.int32)
+        abstracts_l_matrix = np.zeros([batch_size],np.int32)
         for i, instance in enumerate(batch):
             n_sents = len(instance.token_idxs)
+            n_words = len(instance.abstract_idxs)
             doc_l_matrix[i] = n_sents
+            abstracts_l_matrix[i] = n_words
         
         max_doc_l = np.max(doc_l_matrix)
+        max_abstract_l = np.max(abstracts_l_matrix)
         max_sent_l = max([max([len(sent) for sent in doc.token_idxs]) for doc in batch])
         
-        token_idxs_matrix = np.zeros([batch_size, max_doc_l, max_sent_l], np.int32)
+        token_idxs_matrix = np.zeros([batch_size, max_doc_l, max_ans_l, max_sent_l], np.int32)
+        abstract_idx_matrix = np.zeros([batch_size,max_abstract_l], np.int32)
+
         sent_l_matrix = np.zeros([batch_size, max_doc_l], np.int32)
-        
-        abstract_idx_matrix = np.zeros([batch_size,max_doc_l,max_sent_l], np.int32)
 
         mask_tokens_matrix = np.ones([batch_size, max_doc_l, max_sent_l], np.float32)
         mask_sents_matrix = np.ones([batch_size, max_doc_l], np.float32)
@@ -81,7 +86,8 @@ class StructureModel():
 
         feed_dict = {self.t_variables['token_idxs']: token_idxs_matrix, self.t_variables['sent_l']: sent_l_matrix,
                      self.t_variables['mask_tokens']: mask_tokens_matrix, self.t_variables['mask_sents']: mask_sents_matrix,
-                     self.t_variables['doc_l']: doc_l_matrix, self.t_variables['abstract_idxs']: abstract_idx_matrix,
+                     self.t_variables['doc_l']: doc_l_matrix, self.t_variables['abstract_l']:abstracts_l_matrix,
+                     self.t_variables['abstract_idxs']: abstract_idx_matrix,
                      self.t_variables['max_sent_l']: max_sent_l, self.t_variables['max_doc_l']: max_doc_l,
                      self.t_variables['mask_parser_1']: mask_parser_1, self.t_variables['mask_parser_2']: mask_parser_2,
                      self.t_variables['batch_l']: batch_size, self.t_variables['keep_prob']:self.config.keep_prob}
