@@ -43,19 +43,19 @@ class StructureModel():
     def get_feed_dict(self, batch):
         batch_size = len(batch)
         abstracts_l_matrix = np.zeros([batch_size],np.int32)
-        max_doc_l = np.max(doc_l_matrix)
-        
+        doc_l_matrix = np.zeros([batch_size], np.int32)
+
         for i, instance in enumerate(batch):
             n_ans = len(instance.token_idxs)
             n_words = len(instance.abstract_idxs)
             doc_l_matrix[i] = n_ans
             abstracts_l_matrix[i] = n_words
         
+        max_doc_l = np.max(doc_l_matrix)
         max_ans_l = max([max([len(ans) for ans in doc.token_idxs]) for doc in batch])
         max_sent_l = max([max([max([len(sent) for itr in doc.token_idxs for sent in itr]) for ans in doc.token_idxs]) for doc in batch])
         max_abstract_l = np.max(abstracts_l_matrix)
 
-        doc_l_matrix = np.zeros([batch_size], np.int32)
         ans_l_matrix = np.zeros([batch_size, max_doc_l], np.int32)
         sent_l_matrix = np.zeros([batch_size, max_doc_l, max_ans_l], np.int32)
 
