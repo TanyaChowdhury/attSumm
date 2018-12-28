@@ -68,7 +68,7 @@ class StructureModel():
 
         for i, instance in enumerate(batch):
             n_answers = len(instance.token_idxs)
-            abstract_idx_matrix[i] = instance.abstract_idxs
+            abstract_idx_matrix[i] = instance.abstract_idxs[:max_abstract_l]
 
             for j, ans in enumerate(instance.token_idxs):
                 for k, sent in enumerate(instance.token_idxs[j]):
