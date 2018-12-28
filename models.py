@@ -43,7 +43,9 @@ class StructureModel():
     def get_feed_dict(self, batch):
         batch_size = len(batch)
         doc_l_matrix = np.zeros([batch_size], np.int32)
-        ans_l_matrix = np.zeros([batch_size], np.int32)
+        ans_l_matrix = np.zeros([batch_size, max_doc_l], np.int32)
+        sent_l_matrix = np.zeros([batch_size, max_doc_l, max_ans_l], np.int32)
+
         abstracts_l_matrix = np.zeros([batch_size],np.int32)
         
         for i, instance in enumerate(batch):
@@ -53,45 +55,45 @@ class StructureModel():
             abstracts_l_matrix[i] = n_words
         
         max_doc_l = np.max(doc_l_matrix)
-        max_abstract_l = np.max(abstracts_l_matrix)
         max_ans_l = max([max([len(ans) for ans in doc.token_idxs]) for doc in batch])
         max_sent_l = max([max([max([len(sent) for itr in doc.token_idxs for sent in itr]) for ans in doc.token_idxs]) for doc in batch])
+        max_abstract_l = np.max(abstracts_l_matrix)
 
         token_idxs_matrix = np.zeros([batch_size, max_doc_l, max_ans_l, max_sent_l], np.int32)
         abstract_idx_matrix = np.zeros([batch_size,max_abstract_l], np.int32)
 
-        ans_l_matrix = np.zeros([batch_size, max
-        sent_l_matrix = np.zeros([batch_size, max_doc_l], np.int32)
-
-        mask_tokens_matrix = np.ones([batch_size, max_doc_l, max_sent_l], np.float32)
-        mask_sents_matrix = np.ones([batch_size, max_doc_l], np.float32)
+        mask_tokens_matrix = np.ones([batch_size, max_doc_l, max_ans_l, max_sent_l], np.float32)
+        mask_sents_matrix = np.ones([batch_size, max_doc_l, max_ans_l], np.float32)
+        mask_answers_matrix = np.ones([batch_size, max_doc_l],np.float32)
 
         for i, instance in enumerate(batch):
-            n_sents = len(instance.token_idxs)
+            n_answers = len(instance.token_idxs)
             abstract_idx_matrix[i] = instance.abstract_idxs
 
-            for j, sent in enumerate(instance.token_idxs):
-                token_idxs_matrix[i, j, :len(sent)] = np.asarray(sent)
-                mask_tokens_matrix[i, j, len(sent):] = 0
-                sent_l_matrix[i, j] = len(sent)
-            mask_sents_matrix[i, n_sents:] = 0
+            for j, ans in enumerate(instance.token_idxs):
+                for k, sent in enumerate(instance.token_idxs[j]):
+                    token_idxs_matrix[i, j, k,:len(sent)] = np.asarray(sent)
+                    mask_tokens_matrix[i, j, k,len(sent):] = 0
+                    sent_l_matrix[i, j,k] = len(sent)
+
+                mask_sents_matrix[i,j,len(ans):]=0
+                ans_l_matrix[i,j] = len(ans)
+
+            mask_answers_matrix[i, n_answers:] = 0
         
         mask_parser_1 = np.ones([batch_size, max_doc_l, max_doc_l], np.float32)
         mask_parser_2 = np.ones([batch_size, max_doc_l, max_doc_l], np.float32)
         mask_parser_1[:, :, 0] = 0
         mask_parser_2[:, 0, :] = 0
         
-        if (self.config.large_data):
-            if (batch_size * max_doc_l * max_sent_l * max_sent_l > 16 * 200000):
-                return [batch_size * max_doc_l * max_sent_l * max_sent_l / (16 * 200000) + 1]
-
-        feed_dict = {self.t_variables['token_idxs']: token_idxs_matrix, self.t_variables['sent_l']: sent_l_matrix,
-                     self.t_variables['mask_tokens']: mask_tokens_matrix, self.t_variables['mask_sents']: mask_sents_matrix,
-                     self.t_variables['doc_l']: doc_l_matrix, self.t_variables['abstract_l']:abstracts_l_matrix,
-                     self.t_variables['abstract_idxs']: abstract_idx_matrix,
-                     self.t_variables['max_sent_l']: max_sent_l, self.t_variables['max_doc_l']: max_doc_l,
+        feed_dict = {self.t_variables['token_idxs']: token_idxs_matrix,self.t_variables['abstract_idxs']: abstract_idx_matrix,
+                     self.t_variables['sent_l']: sent_l_matrix,self.t_variables['ans_l']:ans_l_matrix,self.t_variables['doc_l']: doc_l_matrix, 
+                     self.t_variables['mask_tokens']: mask_tokens_matrix, self.t_variables['mask_sents']: mask_sents_matrix, self.t_variables['mask_answers']:mask_answers_matrix,
+                     self.t_variables['abstract_l']:abstracts_l_matrix,
+                     self.t_variables['max_sent_l']: max_sent_l,self.t_variables['max_ans_l']:max_ans_l, self.t_variables['max_doc_l']: max_doc_l,
                      self.t_variables['mask_parser_1']: mask_parser_1, self.t_variables['mask_parser_2']: mask_parser_2,
                      self.t_variables['batch_l']: batch_size, self.t_variables['keep_prob']:self.config.keep_prob}
+        
         return  feed_dict
 
 
