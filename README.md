@@ -7,10 +7,10 @@ Code for the paper:
 Yang Liu and Mirella Lapata,
 
 ## Dependencies
-This code is implemented with Tensorflow and the data preprocessing is with Gensim
+This code is implemented with Tensorflow 1.4.0 and the data preprocessing requires Gensim.
 
-## Document Classification
-
+##Data
+Corpus can be regenerated following instructions at (https://bitbucket.org/tanya14109/cqasumm/src/master/)
 
 ## License
 MIT
