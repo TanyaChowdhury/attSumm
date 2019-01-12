@@ -65,10 +65,14 @@ class StructureModel():
         mask_tokens_matrix = np.ones([batch_size, max_doc_l, max_ans_l, max_sent_l], np.float32)
         mask_sents_matrix = np.ones([batch_size, max_doc_l, max_ans_l], np.float32)
         mask_answers_matrix = np.ones([batch_size, max_doc_l],np.float32)
+        mask_abstact_matrix = np.ones([batch_size,max_abstract_l],np.float32)
 
         for i, instance in enumerate(batch):
             n_answers = len(instance.token_idxs)
-            abstract_idx_matrix[i] = instance.abstract_idxs[:max_abstract_l]
+            abstract_ = instance.abstract_idxs
+            abstract_idx_matrix[i,:len(abstract_)] = np.asarray(abstract_)
+            mask_abstact_matrix[i,len(abstract_):] = 0
+            abstracts_l_matrix[i] = len(abstract_)
 
             for j, ans in enumerate(instance.token_idxs):
                 for k, sent in enumerate(instance.token_idxs[j]):
