@@ -329,6 +329,6 @@ class StructureModel():
         update_step = optimizer.apply_gradients(zip(clipped_gradients, params))
 
         self.final_output = logits
-        self.opt = optimizer
         self.loss = train_loss
+        self.opt = optimizer.minimize(train_loss)
 
