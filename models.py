@@ -328,4 +328,7 @@ class StructureModel():
         optimizer = tf.train.AdamOptimizer(learning_rate)
         update_step = optimizer.apply_gradients(zip(clipped_gradients, params))
 
+        self.final_output = logits
+        self.opt = optimizer
+        self.loss = train_loss
 
