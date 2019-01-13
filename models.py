@@ -134,7 +134,7 @@ class StructureModel():
                             initializer=tf.contrib.layers.xavier_initializer())
 
         with tf.variable_scope("Structure/doc"):
-            #Placeholders for hierarchial model at document level(structural part)
+            #Placeholders for hierarchical model at document level(structural part)
             tf.get_variable("w_parser_p", [2 * self.config.dim_str, 2 * self.config.dim_str],
                             dtype=tf.float32,
                             initializer=tf.contrib.layers.xavier_initializer())
@@ -261,7 +261,7 @@ class StructureModel():
         sents_sem = tf.concat([sents_output[0][:,:,:self.config.dim_sem], sents_output[1][:,:,:self.config.dim_sem]], 2)
         sents_str = tf.concat([sents_output[0][:,:,self.config.dim_sem:], sents_output[1][:,:,self.config.dim_sem:]], 2)
 
-        str_scores_ = get_structure('doc', sents_str,max_ans_l, self.t_variables['mask_parser_1'], self.t_variables['mask_parser_2'])  #batch_l,  sent_l+1, sent_l
+        str_scores_ = get_structure('ans', sents_str,max_ans_l, self.t_variables['mask_parser_1'], self.t_variables['mask_parser_2'])  #batch_l,  sent_l+1, sent_l
         str_scores = tf.matrix_transpose(str_scores_)  # soft parent
         sents_sem_root = tf.concat([tf.tile(embeddings_root_a, [batch_l, 1, 1]), sents_sem], 1)
         sents_output_ = tf.matmul(str_scores, sents_sem_root)
@@ -284,7 +284,7 @@ class StructureModel():
         ans_sem = tf.concat([ans_output[0][:,:,:self.config.dim_sem], ans_output[1][:,:,:self.config.dim_sem]], 2)
         ans_str = tf.concat([ans_output[0][:,:,self.config.dim_sem:], ans_output[1][:,:,self.config.dim_sem:]], 2)
 
-        str_scores_ = get_structure('ans', sents_str,max_doc_l, self.t_variables['mask_parser_1'], self.t_variables['mask_parser_2'])  #batch_l,  sent_l+1, sent_l
+        str_scores_ = get_structure('doc', sents_str,max_doc_l, self.t_variables['mask_parser_1'], self.t_variables['mask_parser_2'])  #batch_l,  sent_l+1, sent_l
         str_scores = tf.matrix_transpose(str_scores_)  # soft parent
         ans_sem_root = tf.concat([tf.tile(embeddings_root, [batch_l, 1, 1]), sents_sem], 1)
         ans_output_ = tf.matmul(str_scores, ans_sem_root)
