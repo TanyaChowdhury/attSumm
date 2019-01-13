@@ -94,7 +94,7 @@ class StructureModel():
                      self.t_variables['sent_l']: sent_l_matrix,self.t_variables['ans_l']:ans_l_matrix,self.t_variables['doc_l']: doc_l_matrix, 
                      self.t_variables['mask_tokens']: mask_tokens_matrix, self.t_variables['mask_sents']: mask_sents_matrix, self.t_variables['mask_answers']:mask_answers_matrix,
                      self.t_variables['abstract_l']:abstracts_l_matrix,
-                     self.t_variables['max_sent_l']: max_sent_l,self.t_variables['max_ans_l']:max_ans_l, self.t_variables['max_doc_l']: max_doc_l,
+                     self.t_variables['max_sent_l']: max_sent_l,self.t_variables['max_ans_l']:max_ans_l, self.t_variables['max_doc_l']: max_doc_l,self.t_variables['max_abstract_l']: max_abstract_l,
                      self.t_variables['mask_parser_1']: mask_parser_1, self.t_variables['mask_parser_2']: mask_parser_2,
                      self.t_variables['batch_l']: batch_size, self.t_variables['keep_prob']:self.config.keep_prob}
         
