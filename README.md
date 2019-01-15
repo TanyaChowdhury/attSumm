@@ -1,7 +1,6 @@
 Module for abstractive test summarization using structured attention.
 
-#We are using the following code for the hierarchial attention model
-Code for the paper:
+We started out using the code provided with: 
 
 [Learning Structured Text Representations](https://arxiv.org/abs/1705.09207)  
 Yang Liu and Mirella Lapata,
