@@ -301,15 +301,15 @@ class StructureModel():
         ans_output_ = tf.matmul(str_scores, ans_sem_root)
         ans_output = LReLu(tf.tensordot(tf.concat([ans_sem, sents_output_], 2), w_comb, [[2], [0]]) + b_comb)
 
-        if (self.config.doc_attention == 'sum'):
-            ans_output = ans_output * tf.expand_dims(mask_answers,2)
-            ans_output = tf.reduce_sum(ans_output, 1)
-        elif (self.config.doc_attention == 'mean'):
-            ans_output = ans_output * tf.expand_dims(mask_answers,2)
-            ans_output = tf.reduce_sum(ans_output, 1)/tf.expand_dims(tf.cast(doc_l,tf.float32),1)
-        elif (self.config.doc_attention == 'max'):
-            ans_output = ans_output + tf.expand_dims((mask_answers-1)*999,2)
-            ans_output = tf.reduce_max(ans_output, 1)
+        # if (self.config.doc_attention == 'sum'):
+        #     ans_output = ans_output * tf.expand_dims(mask_answers,2)
+        #     # ans_output = tf.reduce_sum(ans_output, 1)
+        # elif (self.config.doc_attention == 'mean'):
+        #     ans_output = ans_output * tf.expand_dims(mask_answers,2)
+        #     ans_output = tf.reduce_sum(ans_output, 1)/tf.expand_dims(tf.cast(doc_l,tf.float32),1)
+        # elif (self.config.doc_attention == 'max'):
+        #     ans_output = ans_output + tf.expand_dims((mask_answers-1)*999,2)
+        #     ans_output = tf.reduce_max(ans_output, 1)
 
         tgt_vocab_size = self.config.vsize
         learning_rate = self.config.lr
