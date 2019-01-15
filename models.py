@@ -254,11 +254,9 @@ class StructureModel():
             tokens_output = tokens_output + tf.expand_dims((mask_tokens-1)*999,2)
             tokens_output = tf.reduce_max(tokens_output, 1)
 
-        print tokens_output.get_shape()
         #Sentence level RNN
         sents_input = tf.reshape(tokens_output, [batch_l*max_doc_l, max_ans_l,2*self.config.dim_sem])
         ans_l = tf.reshape(ans_l,[batch_l*max_doc_l])
-        print sents_output.get_shape()
 
         sents_output, _ = dynamicBiRNN(sents_input, ans_l, n_hidden=self.config.dim_hidden, cell_type=self.config.rnn_cell, cell_name='Model/ans')
 
