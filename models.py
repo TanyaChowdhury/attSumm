@@ -31,6 +31,8 @@ class StructureModel():
         t_variables['mask_tokens'] = tf.placeholder(tf.float32, [None, None, None,None])
         t_variables['mask_sents'] = tf.placeholder(tf.float32, [None, None,None])
         t_variables['mask_answers']= tf.placeholder(tf.float32,[None,None])
+        
+        #Parser Masks
         t_variables['mask_parser_1'] = tf.placeholder(tf.float32, [None, None, None])
         t_variables['mask_parser_2'] = tf.placeholder(tf.float32, [None, None, None])
 
@@ -256,7 +258,7 @@ class StructureModel():
         sents_input = tf.reshape(tokens_output, [batch_l*max_doc_l, max_ans_l,2*self.config.dim_sem])
         ans_l = tf.reshape(ans_l,[batch_l*max_doc_l])
 
-        sents_output, _ = dynamicBiRNN(sents_input, ans_l, n_hidden=self.config.dim_hidden, cell_type=self.config.rnn_cell, cell_name='Model/doc')
+        sents_output, _ = dynamicBiRNN(sents_input, ans_l, n_hidden=self.config.dim_hidden, cell_type=self.config.rnn_cell, cell_name='Model/ans')
 
         sents_sem = tf.concat([sents_output[0][:,:,:self.config.dim_sem], sents_output[1][:,:,:self.config.dim_sem]], 2)
         sents_str = tf.concat([sents_output[0][:,:,self.config.dim_sem:], sents_output[1][:,:,self.config.dim_sem:]], 2)
@@ -279,7 +281,7 @@ class StructureModel():
 
         #Answer level RNN
         ans_input = tf.reshape(sents_output, [batch_l, max_doc_l,2*self.config.dim_sem])
-        ans_output, answer_states = dynamicBiRNN(ans_input, doc_l, n_hidden=self.config.dim_hidden, cell_type=self.config.rnn_cell, cell_name='Model/ans')
+        ans_output, answer_states = dynamicBiRNN(ans_input, doc_l, n_hidden=self.config.dim_hidden, cell_type=self.config.rnn_cell, cell_name='Model/doc')
 
         ans_sem = tf.concat([ans_output[0][:,:,:self.config.dim_sem], ans_output[1][:,:,:self.config.dim_sem]], 2)
         ans_str = tf.concat([ans_output[0][:,:,self.config.dim_sem:], ans_output[1][:,:,self.config.dim_sem:]], 2)
