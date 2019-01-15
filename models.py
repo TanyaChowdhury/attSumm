@@ -263,6 +263,15 @@ class StructureModel():
         sents_sem = tf.concat([sents_output[0][:,:,:self.config.dim_sem], sents_output[1][:,:,:self.config.dim_sem]], 2)
         sents_str = tf.concat([sents_output[0][:,:,self.config.dim_sem:], sents_output[1][:,:,self.config.dim_sem:]], 2)
 
+        temp1 = tf.zeros([batch_l * max_doc_l, max_ans_l, 1], tf.float32)
+        temp2 = tf.zeros([batch_l * max_doc_l, 1, max_ans_l], tf.float32)
+
+        mask1 = tf.ones([batch_l * max_doc_l * max_ans_l, max_sent_l, max_sent_l-1], tf.float32)
+        mask2 = tf.ones([batch_l * max_doc_l * max_ans_l, max_sent_l-1, max_sent_l], tf.float32)
+        
+        mask1 = tf.concat([temp1,mask1],2)
+        mask2 = tf.concat([temp2,mask2],1)
+
         str_scores_ = get_structure('ans', sents_str,max_ans_l, self.t_variables['mask_parser_1'], self.t_variables['mask_parser_2'])  #batch_l,  sent_l+1, sent_l
         str_scores = tf.matrix_transpose(str_scores_)  # soft parent
         sents_sem_root = tf.concat([tf.tile(embeddings_root_a, [batch_l, 1, 1]), sents_sem], 1)
