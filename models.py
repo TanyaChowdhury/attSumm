@@ -317,10 +317,10 @@ class StructureModel():
         
         decoder_input = tf.reshape(ans_output,[batch_l,2*self.config.dim_sem])
         decoder_cell = tf.nn.rnn_cell.BasicLSTMCell(2*self.config.dim_sem)
-        helper = tf.contrib.seq2seq.TrainingHelper(decoder_input, abstract_l, time_major=True)
+        helper = tf.contrib.seq2seq.TrainingHelper(reference_input, abstract_l, time_major=True)
         projection_layer = tf.layers.Dense(tgt_vocab_size, use_bias=False)
         
-        decoder = tf.contrib.seq2seq.BasicDecoder(decoder_cell, helper,tf.contrib.rnn.LSTMStateTuple(tf.random_normal([batch_l,self.config.dim_hidden]),tf.random_normal([batch_l,self.config.dim_hidden])),output_layer=projection_layer)
+        decoder = tf.contrib.seq2seq.BasicDecoder(decoder_cell, helper,tf.contrib.rnn.LSTMStateTuple(decoder_input,decoder_input),output_layer=projection_layer)
         outputs, states,seq_l = tf.contrib.seq2seq.dynamic_decode(decoder)
         logits = outputs.rnn_output
 
