@@ -291,7 +291,7 @@ class StructureModel():
 
         #Answer level RNN
         ans_input = tf.reshape(sents_output, [batch_l, max_doc_l,2*self.config.dim_sem])
-        ans_output, answer_states = dynamicBiRNN(ans_input, doc_l, n_hidden=self.config.dim_hidden, cell_type=self.config.rnn_cell, cell_name='Model/doc')
+        ans_output, _ = dynamicBiRNN(ans_input, doc_l, n_hidden=self.config.dim_hidden, cell_type=self.config.rnn_cell, cell_name='Model/doc')
 
         ans_sem = tf.concat([ans_output[0][:,:,:self.config.dim_sem], ans_output[1][:,:,:self.config.dim_sem]], 2)
         ans_str = tf.concat([ans_output[0][:,:,self.config.dim_sem:], ans_output[1][:,:,self.config.dim_sem:]], 2)
@@ -300,7 +300,7 @@ class StructureModel():
         str_scores = tf.matrix_transpose(str_scores_)  # soft parent
         ans_sem_root = tf.concat([tf.tile(embeddings_root, [batch_l, 1, 1]), sents_sem], 1)
         ans_output_ = tf.matmul(str_scores, ans_sem_root)
-        ans_output = LReLu(tf.tensordot(tf.concat([ans_sem, sents_output_], 2), w_comb, [[2], [0]]) + b_comb)
+        ans_output = LReLu(tf.tensordot(tf.concat([ans_sem, ans_output_], 2), w_comb, [[2], [0]]) + b_comb)
 
         # if (self.config.doc_attention == 'sum'):
         #     ans_output = ans_output * tf.expand_dims(mask_answers,2)
