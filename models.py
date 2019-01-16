@@ -257,8 +257,8 @@ class StructureModel():
         #Sentence level RNN
         sents_input = tf.reshape(tokens_output, [batch_l*max_doc_l, max_ans_l,2*self.config.dim_sem])
         ans_l = tf.reshape(ans_l,[batch_l*max_doc_l])
-        mask_sents = mask_sents.reshape(mask_sents,[batch_l*max_doc_l,-1])
-        
+        mask_sents = tf.reshape(mask_sents,[batch_l*max_doc_l,-1])
+
         sents_output, _ = dynamicBiRNN(sents_input, ans_l, n_hidden=self.config.dim_hidden, cell_type=self.config.rnn_cell, cell_name='Model/ans')
 
         sents_sem = tf.concat([sents_output[0][:,:,:self.config.dim_sem], sents_output[1][:,:,:self.config.dim_sem]], 2)
