@@ -302,21 +302,22 @@ class StructureModel():
         ans_output_ = tf.matmul(str_scores, ans_sem_root)
         ans_output = LReLu(tf.tensordot(tf.concat([ans_sem, ans_output_], 2), w_comb, [[2], [0]]) + b_comb)
 
-        # if (self.config.doc_attention == 'sum'):
-        #     ans_output = ans_output * tf.expand_dims(mask_answers,2)
-        #     # ans_output = tf.reduce_sum(ans_output, 1)
-        # elif (self.config.doc_attention == 'mean'):
-        #     ans_output = ans_output * tf.expand_dims(mask_answers,2)
-        #     ans_output = tf.reduce_sum(ans_output, 1)/tf.expand_dims(tf.cast(doc_l,tf.float32),1)
-        # elif (self.config.doc_attention == 'max'):
-        #     ans_output = ans_output + tf.expand_dims((mask_answers-1)*999,2)
-        #     ans_output = tf.reduce_max(ans_output, 1)
+        if (self.config.doc_attention == 'sum'):
+            ans_output = ans_output * tf.expand_dims(mask_answers,2)
+            # ans_output = tf.reduce_sum(ans_output, 1)
+        elif (self.config.doc_attention == 'mean'):
+            ans_output = ans_output * tf.expand_dims(mask_answers,2)
+            ans_output = tf.reduce_sum(ans_output, 1)/tf.expand_dims(tf.cast(doc_l,tf.float32),1)
+        elif (self.config.doc_attention == 'max'):
+            ans_output = ans_output + tf.expand_dims((mask_answers-1)*999,2)
+            ans_output = tf.reduce_max(ans_output, 1)
 
         tgt_vocab_size = self.config.vsize
         learning_rate = self.config.lr
         
-        decoder_cell = tf.nn.rnn_cell.BasicLSTMCell(self.config.dim_hidden)
-        helper = tf.contrib.seq2seq.TrainingHelper(ans_output, abstract_l, time_major=True)
+        decoder_input = tf.reshape(ans_output,[batch_l,2*self.config.dim_sem])
+        decoder_cell = tf.nn.rnn_cell.BasicLSTMCell(2*self.config.dim_sem)
+        helper = tf.contrib.seq2seq.TrainingHelper(decoder_input, abstract_l, time_major=True)
         projection_layer = tf.layers.Dense(tgt_vocab_size, use_bias=False)
         
         decoder = tf.contrib.seq2seq.BasicDecoder(decoder_cell, helper,tf.contrib.rnn.LSTMStateTuple(tf.random_normal([batch_l,self.config.dim_hidden]),tf.random_normal([batch_l,self.config.dim_hidden])),output_layer=projection_layer)
