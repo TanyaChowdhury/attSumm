@@ -37,7 +37,7 @@ flags.DEFINE_integer("log_period", 5000, "log_period")
 
 def main(_):
     config = flags.FLAGS
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(config.gpu)
+    # os.environ["CUDA_VISIBLE_DEVICES"] = str(config.gpu)
 
     m(config)
 
