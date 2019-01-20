@@ -5,12 +5,14 @@ import cPickle
 import logging
 from models import StructureModel
 import tqdm
-
+import gc
 def load_data(config):
     try:
+        gc.disable()
         train, dev, test, embeddings, vocab = cPickle.load(open(config.data_file))
     except:
         print 'pickle unloading error'
+    
     trainset, devset, testset = DataSet(train), DataSet(dev), DataSet(test)
     vocab = dict([(v.index,k) for k,v in vocab.items()])
     trainset.sort()
