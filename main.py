@@ -11,6 +11,7 @@ def load_data(config):
         gc.disable()
         train, dev, test, embeddings, vocab = cPickle.load(open(config.data_file))
         gc.enable()
+        print 'Data loaded succesfully'
     except:
         print 'pickle unloading error'
     
